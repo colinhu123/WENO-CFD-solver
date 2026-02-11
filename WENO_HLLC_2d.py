@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from plot_utils import interactive_plot_keyboard
 
 SQRT3_12 = np.sqrt(3)/12
 
@@ -431,9 +432,6 @@ def con2primi(q,gamma:float):
     return p,a,rho_safe,u,v
 
 
-
-import numpy as np
-
 def HLLC_x(qL, qR, F_L, F_R, gamma):
     """
     HLLC flux in x-direction (Toro formulation).
@@ -816,7 +814,8 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
     if fileStorage:
         current_time = datetime.datetime.now()
         folder_name = current_time.strftime("%Y-%m-%d_%H-%M-%S")
-        os.makedirs(folder_name,exist_ok=True)
+        full_path = os.path.join("data", folder_name)
+        os.makedirs(full_path,exist_ok=True)
     gamma = 1.4
     dx = 1/Ngrid
     #N_STEP = 50
@@ -857,7 +856,7 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
     
     print(u[:,:,4])
     if fileStorage:
-        np.save(os.path.join(folder_name,"0.npy"),u)
+        np.save(os.path.join(full_path,"0.npy"),u)
     t_list = np.array([0])
     T = 0
     for i in range(1,N_STEP):
@@ -866,21 +865,22 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
         c_max = np.max(np.sqrt(gamma*u[3:Ngrid+3,3:Ngrid+3,7]/np.maximum(u[3:Ngrid+3,3:Ngrid+3,0],1e-10))+speed)
 
         dt =  CFL*dx/c_max
-
-        u = RK3_correct(u,Ngrid,dt,gamma,force_HLLE)
-
+        try:
+            u = RK3_correct(u,Ngrid,dt,gamma,force_HLLE)
+        except:
+            break
         u = con_var2primi_pfloor(u,gamma)
         T += dt
         if fileStorage:
-            np.save(os.path.join(folder_name,f"{i}.npy"),u)
+            np.save(os.path.join(full_path,f"{i}.npy"),u)
         
         t_list = np.append(t_list,T)
     if fileStorage:
-        np.save(os.path.join(folder_name,"time.npy"),t_list)
+        np.save(os.path.join(full_path,"time.npy"),t_list)
+    interactive_plot_keyboard(full_path,initial_step=0,var='rho')
 
 
-
-main(200,200,fileStorage = True,force_HLLE=False)
+main(200,100,fileStorage = True,force_HLLE=True)
 
 '''
 Notes on 10 Feb:
