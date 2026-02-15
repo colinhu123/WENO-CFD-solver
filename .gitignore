@@ -3,3 +3,5 @@ data/
 __pycache__/
 
 dev_log.md
+
+RiemannSolver/

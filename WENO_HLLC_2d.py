@@ -668,6 +668,41 @@ def HLLE_y(qL, qR, F_L, F_R, gamma):
 
     return F
 
+def shock_sensor(pR,pL,Jp_lo=0.15,Jp_hi=0.4):
+    _eps = 1e-12
+    Jp = np.abs(pR - pL) / (np.maximum(pR, pL) + _eps)
+
+    # linear smooth blending weight phi in [0,1]
+    phi = np.where(Jp <= Jp_lo, 1.0,
+                   np.where(Jp >= Jp_hi, 0.0,
+                            1.0 - (Jp - Jp_lo) / (Jp_hi - Jp_lo)))
+    
+    return phi
+
+def shock_sensor_grad_p(pR,pL,Jp_lo=0.15,Jp_hi=0.4):
+    _eps = 1e-12
+    (Nx,Ny) = np.shape(pR)
+    dx = 1/min(Nx,Ny)
+    p = 0.5*(pL+pR)
+    dpdx = np.zeros_like(pR)
+    dpdy = np.zeros_like(pR)
+
+    dpdx[1:-1,:] = (p[2:,:]-p[:-2,:])/(2*dx)
+    dpdx[0,:] = (p[1,:]-p[0,:])/(2*dx)
+    dpdx[-1,:] = (p[-1,:]-p[-2,:])/(2*dx)
+    dpdy[:,1:-1] = (p[:,2:]-p[:,:-2])/(2*dx)
+    dpdy[:,0] =  (p[:,1]-p[:,0])/(2*dx)
+    dpdy[:,-1] = (p[:,-1]-p[:,-2])/(2*dx)
+
+    grad_p = np.sqrt(dpdx**2+dpdy**2)
+    Jp = grad_p/p
+
+    phi = np.where(Jp <= Jp_lo, 1.0,
+                    np.where(Jp >= Jp_hi, 0.0,
+                            1.0 - (Jp - Jp_lo) / (Jp_hi - Jp_lo)))
+    
+    return phi
+
 def HLLC_HLLE_x(qL, qR, F_L, F_R, gamma, Jp_lo=0.15, Jp_hi=0.4):
     """
     Face-based blended flux in x-direction.
@@ -678,13 +713,9 @@ def HLLC_HLLE_x(qL, qR, F_L, F_R, gamma, Jp_lo=0.15, Jp_hi=0.4):
     _eps = 1e-12
     pL, aL, rhoL, uL, vL = con2primi(qL, gamma)
     pR, aR, rhoR, uR, vR = con2primi(qR, gamma)
-    Jp = np.abs(pR - pL) / (np.maximum(pR, pL) + _eps)
 
-    # linear smooth blending weight phi in [0,1]
-    phi = np.where(Jp <= Jp_lo, 1.0,
-                   np.where(Jp >= Jp_hi, 0.0,
-                            1.0 - (Jp - Jp_lo) / (Jp_hi - Jp_lo)))
-    # compute both fluxes and blend
+    phi = shock_sensor(pR,pL,Jp_lo,Jp_hi)
+
     F_hllc = HLLC_x(qL, qR, F_L, F_R, gamma)
     F_hlle = HLLE_x(qL, qR, F_L, F_R, gamma)
 
@@ -699,11 +730,8 @@ def HLLC_HLLE_y(qL, qR, F_L, F_R, gamma, Jp_lo=0.15, Jp_hi=0.4):
     _eps = 1e-12
     pL, aL, rhoL, uL, vL = con2primi(qL, gamma)
     pR, aR, rhoR, uR, vR = con2primi(qR, gamma)
-    Jp = np.abs(pR - pL) / (np.maximum(pR, pL) + _eps)
 
-    phi = np.where(Jp <= Jp_lo, 1.0,
-                   np.where(Jp >= Jp_hi, 0.0,
-                            1.0 - (Jp - Jp_lo) / (Jp_hi - Jp_lo)))
+    phi = shock_sensor_grad_p(pR,pL,Jp_lo,Jp_hi)
 
     F_hllc = HLLC_y(qL, qR, F_L, F_R, gamma)
     F_hlle = HLLE_y(qL, qR, F_L, F_R, gamma)
@@ -719,8 +747,8 @@ def L(q,dx,gamma,force_HLLE):
         F_x = HLLE_x(qLx,qRx,FLx,FRx,gamma)
         F_y = HLLE_y(qLy,qRy,FLy,FRy,gamma)
     else:
-        F_x = HLLC_HLLE_x(qLx,qRx,FLx,FRx,gamma,Jp_lo=0.3,Jp_hi=0.5)
-        F_y = HLLC_HLLE_y(qLy,qRy,FLy,FRy,gamma,Jp_lo=0.3,Jp_hi=0.5)
+        F_x = HLLC_HLLE_x(qLx,qRx,FLx,FRx,gamma,Jp_lo=0.4,Jp_hi=1.0)
+        F_y = HLLC_HLLE_y(qLy,qRy,FLy,FRy,gamma,Jp_lo=0.4,Jp_hi=1.0)
     df_dx = (F_x[1:,:,:]-F_x[:-1,:,:])/dx
     dg_dy = (F_y[:,1:,:]-F_y[:,:-1,:])/dx
 
@@ -816,7 +844,7 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
 
     gamma = 1.4
     dx = 1/Ngrid
-    N_STEP = 50
+
     u = np.zeros((Ngrid+6,Ngrid+6,8))
     CFL = 0.2
 
@@ -852,7 +880,6 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
 
     u = apply_bc_corrected(u,Ngrid)
     
-    print(u[:,:,4])
     if fileStorage:
         current_time = datetime.datetime.now()
         folder_name = current_time.strftime("%Y-%m-%d_%H-%M-%S")
@@ -867,10 +894,9 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
         c_max = np.max(np.sqrt(gamma*u[3:Ngrid+3,3:Ngrid+3,7]/np.maximum(u[3:Ngrid+3,3:Ngrid+3,0],1e-10))+speed)
 
         dt =  CFL*dx/c_max
-        try:
-            u = RK3_correct(u,Ngrid,dt,gamma,force_HLLE)
-        except:
-            break
+
+        u = RK3_correct(u,Ngrid,dt,gamma,force_HLLE)
+
         u = con_var2primi_pfloor(u,gamma)
         T += dt
         if fileStorage:
@@ -882,5 +908,5 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
         interactive_plot_keyboard(full_path,initial_step=0,var='rho')
 
 
-main(200,100,fileStorage = True,force_HLLE=True)
+main(200,400,fileStorage = True,force_HLLE=False)
 
