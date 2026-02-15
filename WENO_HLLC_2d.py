@@ -747,9 +747,9 @@ def RK3(u,Ngrid,dt):
     u1 = u.copy()
     u2 = u.copy()
     u1 = apply_bc_corrected(u1,Ngrid)
-    u2[3:Ngrid+3,3:Ngrid+3,:4] = 0.75*u[3:Ngrid+3,3:Ngrid+3,:4]+0.25*u1[3:Ngrid+3,3:Ngrid+3,:4]+dt*L(u1,1/Ngrid,gamma=1.4)
+    u2[3:Ngrid+3,3:Ngrid+3,:4] = 0.75*u[3:Ngrid+3,3:Ngrid+3,:4]+0.25*u1[3:Ngrid+3,3:Ngrid+3,:4]+dt*L(u1,1/Ngrid,gamma=1.4,force_HLLE=False)
     u2 = apply_bc_corrected(u2,Ngrid)
-    u[3:Ngrid+3,3:Ngrid+3,:4] = 1/3*u[3:Ngrid+3,3:Ngrid+3,:4] + 2/3*u2[3:Ngrid+3,3:Ngrid+3,:4] + 2/3*dt*L(u2,1/Ngrid,gamma = 1.4)
+    u[3:Ngrid+3,3:Ngrid+3,:4] = 1/3*u[3:Ngrid+3,3:Ngrid+3,:4] + 2/3*u2[3:Ngrid+3,3:Ngrid+3,:4] + 2/3*dt*L(u2,1/Ngrid,gamma = 1.4,force_HLLE=False)
     u = apply_bc_corrected(u,Ngrid)
     return u
 
@@ -811,14 +811,12 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
     import datetime
     import os
     u = np.ones((Ngrid+6,Ngrid+6,8))
-    if fileStorage:
-        current_time = datetime.datetime.now()
-        folder_name = current_time.strftime("%Y-%m-%d_%H-%M-%S")
-        full_path = os.path.join("data", folder_name)
-        os.makedirs(full_path,exist_ok=True)
+    full_path = ""
+    folder_name = ""
+
     gamma = 1.4
     dx = 1/Ngrid
-    #N_STEP = 50
+    N_STEP = 50
     u = np.zeros((Ngrid+6,Ngrid+6,8))
     CFL = 0.2
 
@@ -856,6 +854,10 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
     
     print(u[:,:,4])
     if fileStorage:
+        current_time = datetime.datetime.now()
+        folder_name = current_time.strftime("%Y-%m-%d_%H-%M-%S")
+        full_path = os.path.join("data", folder_name)
+        os.makedirs(full_path,exist_ok=True)
         np.save(os.path.join(full_path,"0.npy"),u)
     t_list = np.array([0])
     T = 0
@@ -877,34 +879,8 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
         t_list = np.append(t_list,T)
     if fileStorage:
         np.save(os.path.join(full_path,"time.npy"),t_list)
-    interactive_plot_keyboard(full_path,initial_step=0,var='rho')
+        interactive_plot_keyboard(full_path,initial_step=0,var='rho')
 
 
 main(200,100,fileStorage = True,force_HLLE=True)
 
-'''
-Notes on 10 Feb:
-this program is able to run without runtime warning and dimension of array is correct
-
-However, accordin got Gemini, there exists carbuncle phenomenon
-I've switched to density based method to estimate SL and SR
-does not work.
-
-It suggests to switch to HLLE solver when the gradient of p is too large
-in order to avoid carbuncle phenomenon.
-
-I estimate there might be some problems with reconstruction.
-'''
-
-'''
-Notes on 11 Feb
-today's work is to add HLLE mixed solver into the program. now it supports two mode: mix and pure HLLE,
-which is controled by the argument force_HLLE
-
-when using force_HLLE, the shock is quite thick but with clear boundary without carbuncle phenomenon.
-The shock wave sensor uses pressure jump.
-
-HLLE result suggests WENO does not have any problem. It is more about Riemann solver and limiter.
-
-Tomorrow I should switch to gradient method to see if this sensor works well.
-'''
