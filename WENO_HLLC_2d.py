@@ -714,7 +714,7 @@ def HLLC_HLLE_x(qL, qR, F_L, F_R, gamma, Jp_lo=0.15, Jp_hi=0.4):
     pL, aL, rhoL, uL, vL = con2primi(qL, gamma)
     pR, aR, rhoR, uR, vR = con2primi(qR, gamma)
 
-    phi = shock_sensor(pR,pL,Jp_lo,Jp_hi)
+    phi = shock_sensor_grad_p(pR,pL,Jp_lo,Jp_hi)
 
     F_hllc = HLLC_x(qL, qR, F_L, F_R, gamma)
     F_hlle = HLLE_x(qL, qR, F_L, F_R, gamma)
@@ -740,15 +740,17 @@ def HLLC_HLLE_y(qL, qR, F_L, F_R, gamma, Jp_lo=0.15, Jp_hi=0.4):
     F = phi_exp * F_hllc + (1.0 - phi_exp) * F_hlle
     return F
 
-def L(q,dx,gamma,force_HLLE):
+def L(q,dx,gamma,force_HLLE,Jp_cri):
     qLx,FLx,qRx,FRx = weno_x(q,gamma)
     qLy,FLy,qRy,FRy = weno_y(q,gamma)
+    Jp_lo = Jp_cri[0]
+    Jp_hi = Jp_cri[1]
     if force_HLLE:
         F_x = HLLE_x(qLx,qRx,FLx,FRx,gamma)
         F_y = HLLE_y(qLy,qRy,FLy,FRy,gamma)
     else:
-        F_x = HLLC_HLLE_x(qLx,qRx,FLx,FRx,gamma,Jp_lo=0.4,Jp_hi=1.0)
-        F_y = HLLC_HLLE_y(qLy,qRy,FLy,FRy,gamma,Jp_lo=0.4,Jp_hi=1.0)
+        F_x = HLLC_HLLE_x(qLx,qRx,FLx,FRx,gamma,Jp_lo,Jp_hi)
+        F_y = HLLC_HLLE_y(qLy,qRy,FLy,FRy,gamma,Jp_lo,Jp_hi)
     df_dx = (F_x[1:,:,:]-F_x[:-1,:,:])/dx
     dg_dy = (F_y[:,1:,:]-F_y[:,:-1,:])/dx
 
@@ -771,25 +773,25 @@ def apply_bc_corrected(u, Ngrid):
     
     return u
 
-def RK3(u,Ngrid,dt):
+def RK3(u,Ngrid,dt,Jp_cri):
     u1 = u.copy()
     u2 = u.copy()
     u1 = apply_bc_corrected(u1,Ngrid)
-    u2[3:Ngrid+3,3:Ngrid+3,:4] = 0.75*u[3:Ngrid+3,3:Ngrid+3,:4]+0.25*u1[3:Ngrid+3,3:Ngrid+3,:4]+dt*L(u1,1/Ngrid,gamma=1.4,force_HLLE=False)
+    u2[3:Ngrid+3,3:Ngrid+3,:4] = 0.75*u[3:Ngrid+3,3:Ngrid+3,:4]+0.25*u1[3:Ngrid+3,3:Ngrid+3,:4]+dt*L(u1,1/Ngrid,gamma=1.4,force_HLLE=False,Jp_cri=Jp_cri)
     u2 = apply_bc_corrected(u2,Ngrid)
-    u[3:Ngrid+3,3:Ngrid+3,:4] = 1/3*u[3:Ngrid+3,3:Ngrid+3,:4] + 2/3*u2[3:Ngrid+3,3:Ngrid+3,:4] + 2/3*dt*L(u2,1/Ngrid,gamma = 1.4,force_HLLE=False)
+    u[3:Ngrid+3,3:Ngrid+3,:4] = 1/3*u[3:Ngrid+3,3:Ngrid+3,:4] + 2/3*u2[3:Ngrid+3,3:Ngrid+3,:4] + 2/3*dt*L(u2,1/Ngrid,gamma = 1.4,force_HLLE=False,Jp_cri=Jp_cri)
     u = apply_bc_corrected(u,Ngrid)
     return u
 
-def RK3_correct(u, Ngrid, dt, gamma,force_HLLE):
+def RK3_correct(u, Ngrid, dt, gamma,force_HLLE,Jp_cri):
     # 第一步
-    L0 = L(u, 1/Ngrid, gamma,force_HLLE)
+    L0 = L(u, 1/Ngrid, gamma,force_HLLE,Jp_cri)
     u1 = u.copy()
     u1[3:Ngrid+3, 3:Ngrid+3, :4] = u[3:Ngrid+3, 3:Ngrid+3, :4] + dt * L0
     u1 = apply_bc_corrected(u1, Ngrid)
     
     # 第二步
-    L1 = L(u1, 1/Ngrid, gamma,force_HLLE)
+    L1 = L(u1, 1/Ngrid, gamma,force_HLLE,Jp_cri)
     u2 = u.copy()
     u2[3:Ngrid+3, 3:Ngrid+3, :4] = (
         0.75 * u[3:Ngrid+3, 3:Ngrid+3, :4] + 
@@ -799,7 +801,7 @@ def RK3_correct(u, Ngrid, dt, gamma,force_HLLE):
     u2 = apply_bc_corrected(u2, Ngrid)
     
     # 第三步
-    L2 = L(u2, 1/Ngrid, gamma,force_HLLE)
+    L2 = L(u2, 1/Ngrid, gamma,force_HLLE,Jp_cri)
     u_next = u.copy()
     u_next[3:Ngrid+3, 3:Ngrid+3, :4] = (
         1/3 * u[3:Ngrid+3, 3:Ngrid+3, :4] + 
@@ -835,7 +837,7 @@ def con_var2primi_pfloor(u,gamma):
     return u
 
 
-def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
+def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False,Jp_cri=(1.0,4.0)):
     import datetime
     import os
     u = np.ones((Ngrid+6,Ngrid+6,8))
@@ -895,7 +897,7 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
 
         dt =  CFL*dx/c_max
 
-        u = RK3_correct(u,Ngrid,dt,gamma,force_HLLE)
+        u = RK3_correct(u,Ngrid,dt,gamma,force_HLLE,Jp_cri)
 
         u = con_var2primi_pfloor(u,gamma)
         T += dt
@@ -908,5 +910,5 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False):
         interactive_plot_keyboard(full_path,initial_step=0,var='rho')
 
 
-main(200,400,fileStorage = True,force_HLLE=False)
+main(1000,2000,fileStorage = True,force_HLLE=False,Jp_cri=(10.0,100.0))
 
