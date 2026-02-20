@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter
 
 # =========== 用户可修改的参数 ===========
-folder =  "data/2026-02-16_20-10-28"  # 包含 0.npy..699.npy 和 time.npy 的文件夹
+folder =  "data/2026-02-18_23-53-58"  # 包含 0.npy..699.npy 和 time.npy 的文件夹
 slice_index = 4                  # 取 [:,:,4]
 outfile = "slice_animation_with_time.mp4"  # 输出视频名
 fps = 20                         # 输出视频帧率
 interval_ms = 50                 # 界面播放时每帧间隔（ms）
 sample_max = 200                 # 用于估算 vmin/vmax 的抽样帧数（<= n_frames）
 compute_exact_vrange = False     # True 则对所有帧做精确扫描以求 vmin/vmax（I/O 多）
-bitrate = 4000                   # 输出比特率（可调）
+bitrate = 8000                   # 输出比特率（可调）
 time_filename = "time.npy"       # 时刻文件名
 # ========================================
 
@@ -90,14 +90,14 @@ first_arr = np.load(first_path, mmap_mode='r')
 if first_arr.ndim < 3 or slice_index >= first_arr.shape[2]:
     raise RuntimeError(f"First file {files[0]} shape {first_arr.shape} incompatible with slice_index {slice_index}.")
 img0 = first_arr[:, :, slice_index]
-
+vmax = 2
 fig, ax = plt.subplots(figsize=(8, 6))
 im = ax.imshow(img0, vmin=vmin, vmax=vmax, origin='lower', aspect='auto',cmap='coolwarm')
 cbar = fig.colorbar(im, ax=ax)
 # 标题模板：Riem. Prob. 1024^{2} WENO HLLC t = ???s
 # 使用 mathtext 渲染 1024^2
 initial_t = float(t_data[0]) if len(t_data) > 0 else 0.0
-ax.set_title(rf"Riem. Prob. $1024^2$ WENO HLLC t = {initial_t:.4f}s")
+ax.set_title(rf"Riem. Prob. WENO HLLC t = {initial_t:.4f}s")
 ax.set_xlabel("X index")
 ax.set_ylabel("Y index")
 
@@ -110,7 +110,7 @@ def update(frame_idx):
     sl = arr[:, :, slice_index]
     im.set_data(sl)
     t = float(t_data[frame_idx])
-    ax.set_title(rf"Riem. Prob. $1024^2$ WENO HLLC t = {t:.4f}s")
+    ax.set_title(rf"Riem. Prob. WENO HLLC t = {t:.4f}s")
     return [im]
 
 # 7) 创建并保存动画（blit=False 更可靠）

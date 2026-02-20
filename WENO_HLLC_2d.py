@@ -910,5 +910,5 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False,Jp_cri=(1.0,4.0)):
         interactive_plot_keyboard(full_path,initial_step=0,var='rho')
 
 
-main(1000,2000,fileStorage = True,force_HLLE=False,Jp_cri=(10.0,100.0))
+main(400,1000,fileStorage = True,force_HLLE=False,Jp_cri=(10.0,100.0))
 
