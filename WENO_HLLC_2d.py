@@ -909,6 +909,6 @@ def main(Ngrid,N_STEP,fileStorage = True,force_HLLE = False,Jp_cri=(1.0,4.0)):
         np.save(os.path.join(full_path,"time.npy"),t_list)
         interactive_plot_keyboard(full_path,initial_step=0,var='rho')
 
-
-main(400,1000,fileStorage = True,force_HLLE=False,Jp_cri=(10.0,100.0))
+if __name__ == "main":
+    main(400,1000,fileStorage = True,force_HLLE=False,Jp_cri=(10.0,100.0))
 
