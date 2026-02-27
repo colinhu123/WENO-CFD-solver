@@ -4,7 +4,9 @@ use pyo3::prelude::*;
 use ndarray::{Array2, ArrayView2};
 const DEFAULT_EPS: f64 = 1e-12_f64;
 
-
+mod utils;
+mod weno;
+mod riemann;
 
 /// Convert conservative -> primitives (p, a, rho_safe, u, v)
 fn con2primi_local(q: ArrayView3<'_, f64>, gamma: f64)
@@ -74,7 +76,7 @@ fn flux_y_local(q: ArrayView3<'_, f64>, gamma: f64) -> Array3<f64> {
 }
 
 /// HLLC in x-direction (adapted from your example)
-fn hllc_x_local(q_l: ArrayView3<'_, f64>, q_r: ArrayView3<'_, f64>, f_l: ArrayView3<'_, f64>, F_R: ArrayView3<'_, f64>, gamma: f64) -> Array3<f64> {
+fn hllc_x_local(q_l: ArrayView3<'_, f64>, q_r: ArrayView3<'_, f64>, f_l: ArrayView3<'_, f64>, f_r: ArrayView3<'_, f64>, gamma: f64) -> Array3<f64> {
     let (m, n, _c) = q_l.dim();
     let mut out = Array3::<f64>::zeros((m, n, 4));
 
@@ -92,67 +94,67 @@ fn hllc_x_local(q_l: ArrayView3<'_, f64>, q_r: ArrayView3<'_, f64>, f_l: ArrayVi
 
             let u_l = ql1 / ql0;
             let v_l = ql2 / ql0;
-            let uR = qr1 / qr0;
-            let vR = qr2 / qr0;
-            let pL = (gamma - 1.0) * (ql3 - 0.5 * ql0 * (u_l * u_l + v_l * v_l));
-            let pR = (gamma - 1.0) * (qr3 - 0.5 * qr0 * (uR * uR + vR * vR));
-            let pL = pL.max(DEFAULT_EPS);
-            let pR = pR.max(DEFAULT_EPS);
-            let HL = (ql3 + pL) / ql0;
-            let HR = (qr3 + pR) / qr0;
+            let u_r = qr1 / qr0;
+            let v_r = qr2 / qr0;
+            let p_l = (gamma - 1.0) * (ql3 - 0.5 * ql0 * (u_l * u_l + v_l * v_l));
+            let p_r = (gamma - 1.0) * (qr3 - 0.5 * qr0 * (u_r * u_r + v_r * v_r));
+            let p_l = p_l.max(DEFAULT_EPS);
+            let p_r = p_r.max(DEFAULT_EPS);
+            let h_l = (ql3 + p_l) / ql0;
+            let h_r = (qr3 + p_r) / qr0;
 
-            let sqrt_rhoL = ql0.sqrt();
-            let sqrt_rhoR = qr0.sqrt();
-            let denom_r = sqrt_rhoL + sqrt_rhoR;
-            let u_tilde = (sqrt_rhoL * u_l + sqrt_rhoR * uR) / denom_r;
-            let v_tilde = (sqrt_rhoL * v_l + sqrt_rhoR * vR) / denom_r;
-            let H_tilde = (sqrt_rhoL * HL + sqrt_rhoR * HR) / denom_r;
-            let tmp = H_tilde - 0.5 * (u_tilde * u_tilde + v_tilde * v_tilde);
+            let sqrt_rho_l = ql0.sqrt();
+            let sqrt_rho_r = qr0.sqrt();
+            let denom_r = sqrt_rho_l + sqrt_rho_r;
+            let u_tilde = (sqrt_rho_l * u_l + sqrt_rho_r * u_r) / denom_r;
+            let v_tilde = (sqrt_rho_l * v_l + sqrt_rho_r * v_r) / denom_r;
+            let h_tilde = (sqrt_rho_l * h_l + sqrt_rho_r * h_r) / denom_r;
+            let tmp = h_tilde - 0.5 * (u_tilde * u_tilde + v_tilde * v_tilde);
             let a_tilde = ((gamma - 1.0) * tmp).max(0.0).sqrt();
 
-            let SL = u_tilde - a_tilde;
-            let SR = u_tilde + a_tilde;
+            let s_l = u_tilde - a_tilde;
+            let s_r = u_tilde + a_tilde;
 
             // denom for Sstar
-            let mut denom = ql0 * (SL - u_l) - qr0 * (SR - uR);
+            let mut denom = ql0 * (s_l - u_l) - qr0 * (s_r - u_r);
             if denom.abs() < DEFAULT_EPS {
                 denom = DEFAULT_EPS.copysign(denom) + DEFAULT_EPS;
             }
 
-            let Sstar = (pR - pL + ql0 * u_l * (SL - u_l) - qr0 * uR * (SR - uR)) / denom;
+            let s_star = (p_r - p_l + ql0 * u_l * (s_l - u_l) - qr0 * u_r * (s_r - u_r)) / denom;
 
             // Left star
-            let coeffL = ql0 * (SL - u_l) / (SL - Sstar);
-            let eL_spec = ql3 / ql0;
-            let Estar_spec_L = eL_spec + (Sstar - u_l) * (Sstar + pL / (ql0 * (SL - u_l)));
-            let QstarL = [coeffL, coeffL * Sstar, coeffL * v_l, coeffL * Estar_spec_L];
+            let coeff_l = ql0 * (s_l - u_l) / (s_l - s_star);
+            let el_spec = ql3 / ql0;
+            let e_star_spec_l = el_spec + (s_star - u_l) * (s_star + p_l / (ql0 * (s_l - u_l)));
+            let q_star_l = [coeff_l, coeff_l * s_star, coeff_l * v_l, coeff_l * e_star_spec_l];
 
             // Right star
-            let coeffR = qr0 * (Sstar - uR) / (SR - Sstar);
-            let eR_spec = qr3 / qr0;
-            let Estar_spec_R = eR_spec + (Sstar - uR) * (Sstar + pR / (qr0 * (SR - uR)));
-            let QstarR = [coeffR, coeffR * Sstar, coeffR * vR, coeffR * Estar_spec_R];
+            let coeff_r = qr0 * (s_star - u_r) / (s_r - s_star);
+            let er_spec = qr3 / qr0;
+            let e_star_spec_r = er_spec + (s_star - u_r) * (s_star + p_r / (qr0 * (s_r - u_r)));
+            let q_star_r = [coeff_r, coeff_r * s_star, coeff_r * v_r, coeff_r * e_star_spec_r];
 
             // pick flux
             let fl = [f_l[[i, j, 0]], f_l[[i, j, 1]], f_l[[i, j, 2]], f_l[[i, j, 3]]];
-            let fr = [F_R[[i, j, 0]], F_R[[i, j, 1]], F_R[[i, j, 2]], F_R[[i, j, 3]]];
+            let fr = [f_r[[i, j, 0]], f_r[[i, j, 1]], f_r[[i, j, 2]], f_r[[i, j, 3]]];
 
-            let mut Fij = [0.0_f64; 4];
-            if SL >= 0.0 {
-                Fij = fl;
-            } else if SL < 0.0 && Sstar >= 0.0 {
+            let mut fij = [0.0_f64; 4];
+            if s_l >= 0.0 {
+                fij = fl;
+            } else if s_l < 0.0 && s_star >= 0.0 {
                 for k in 0..4 {
-                    Fij[k] = fl[k] + SL * (QstarL[k] - q_l[[i, j, k]]);
+                    fij[k] = fl[k] + s_l * (q_star_l[k] - q_l[[i, j, k]]);
                 }
-            } else if Sstar < 0.0 && SR > 0.0 {
+            } else if s_star < 0.0 && s_r > 0.0 {
                 for k in 0..4 {
-                    Fij[k] = fr[k] + SR * (QstarR[k] - q_r[[i, j, k]]);
+                    fij[k] = fr[k] + s_r * (q_star_r[k] - q_r[[i, j, k]]);
                 }
             } else {
-                Fij = fr;
+                fij = fr;
             }
             for k in 0..4 {
-                out[[i, j, k]] = Fij[k];
+                out[[i, j, k]] = fij[k];
             }
         }
     }
@@ -167,12 +169,12 @@ fn weno_x_local(u: ArrayView3<'_, f64>, gamma: f64) -> (Array3<f64>, Array3<f64>
     // but you may want to optimize further for your production use.
 
     // Expect u shape (N+6, N+6, 8) and we reconstruct qL,qR of shapes (N+1,N,4)
-    let (M, N, C) = u.dim();
-    assert!(C >= 4, "u must have at least 4 channels");
+    let (m, n, c) = u.dim();
+    assert!(c >= 4, "u must have at least 4 channels");
     // Extract conservative channels only
-    let mut u_con = Array3::<f64>::zeros((M, N, 4));
-    for i in 0..M {
-        for j in 0..N {
+    let mut u_con = Array3::<f64>::zeros((m, n, 4));
+    for i in 0..m {
+        for j in 0..n {
             for k in 0..4 {
                 u_con[[i, j, k]] = u[[i, j, k]];
             }
@@ -181,8 +183,8 @@ fn weno_x_local(u: ArrayView3<'_, f64>, gamma: f64) -> (Array3<f64>, Array3<f64>
 
     // Following Python indexing: u0 = u_con[:-5,:,:] etc
     // output sizes: qL,qR,FL,FR shapes (N+1,N,4)
-    let out_m = M - 5; // should equal N+1 in Python usage
-    let out_n = N - 6; // N in Python usage
+    let out_m = m - 5; // should equal N+1 in Python usage
+    let out_n = n - 6; // N in Python usage
     let mut qL = Array3::<f64>::zeros((out_m, out_n, 4));
     let mut qR = Array3::<f64>::zeros((out_m, out_n, 4));
     let mut FL = Array3::<f64>::zeros((out_m, out_n, 4));

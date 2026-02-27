@@ -1,7 +1,7 @@
 use ndarray::{ArrayView3, Array3};
 use crate::utils;
 
-pub(crate) fn weno_x_reconstruct(u: ArrayView3<'_, f64>, gamma: f64) -> 
+pub(crate) fn weno_x_reconstruct_local(u: ArrayView3<'_, f64>, gamma: f64) -> 
 (Array3<f64>, Array3<f64>, Array3<f64>, Array3<f64>)
 {
     let (m,n,c) = u.dim();
@@ -220,7 +220,7 @@ pub(crate) fn weno_x_reconstruct(u: ArrayView3<'_, f64>, gamma: f64) ->
 
 }
 
-pub(crate) fn weno_y_reconstruct(u: ArrayView3<'_, f64>, gamma: f64)
+pub(crate) fn weno_y_reconstruct_local(u: ArrayView3<'_, f64>, gamma: f64)
 -> (Array3<f64>,Array3<f64>,Array3<f64>,Array3<f64>)
 {
     let (m,n,c) = u.dim();
