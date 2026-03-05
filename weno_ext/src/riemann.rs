@@ -349,21 +349,17 @@ let (m, n, _c) = q_l.dim();
 }
 
 
-pub(crate) fn shock_sensor_grad_p(p_input: ArrayView2<'_,f64>, jp_low: f64, jp_high: f64)
--> Array2<f64>{
-    let (m,n) = p_input.dim();
-    let mut p = Array2::<f64>::zeros((m, n));
-    for i in 0..m {
-        for j in 0..n {
-            p[[i, j]] = p_input[[i,j]]
-        }
-    }
+pub(crate) fn shock_sensor_grad_p(
+    p: ArrayView2<'_, f64>,
+    jp_low: f64,
+    jp_high: f64,
+) -> Array2<f64> {
 
-    // spacing (you used 1/min_dim in the original)
+    let (m, n) = p.dim();
+
     let min_dim = (m.min(n)).max(1) as f64;
     let dx = 1.0 / min_dim;
 
-    // derivatives
     let mut dpdx = Array2::<f64>::zeros((m, n));
     let mut dpdy = Array2::<f64>::zeros((m, n));
 
@@ -373,9 +369,10 @@ pub(crate) fn shock_sensor_grad_p(p_input: ArrayView2<'_,f64>, jp_low: f64, jp_h
             dpdx[[i, j]] = (p[[i+1, j]] - p[[i-1, j]]) / (2.0 * dx);
         }
     }
-    // x-boundaries (one-sided)
+
+    // x-boundaries
     for j in 0..n {
-        dpdx[[0, j]]       = (p[[1, j]] - p[[0, j]]) / (2.0 * dx);
+        dpdx[[0, j]] = (p[[1, j]] - p[[0, j]]) / (2.0 * dx);
         dpdx[[m-1, j]] = (p[[m-1, j]] - p[[m-2, j]]) / (2.0 * dx);
     }
 
@@ -384,17 +381,19 @@ pub(crate) fn shock_sensor_grad_p(p_input: ArrayView2<'_,f64>, jp_low: f64, jp_h
         for j in 1..(n-1) {
             dpdy[[i, j]] = (p[[i, j+1]] - p[[i, j-1]]) / (2.0 * dx);
         }
-        // y-boundaries (one-sided)
-        dpdy[[i, 0]]       = (p[[i, 1]] - p[[i, 0]]) / (2.0 * dx);
+
+        dpdy[[i, 0]] = (p[[i, 1]] - p[[i, 0]]) / (2.0 * dx);
         dpdy[[i, n-1]] = (p[[i, n-1]] - p[[i, n-2]]) / (2.0 * dx);
     }
 
-    // sensor phi (2D)
+    // sensor
     let mut phi = Array2::<f64>::zeros((m, n));
+
     for i in 0..m {
         for j in 0..n {
             let grad = (dpdx[[i, j]].powi(2) + dpdy[[i, j]].powi(2)).sqrt();
-            let jp = grad / (p[[i, j]].max(utils::DEFAULT_EPS));
+            let jp = grad / p[[i, j]].max(utils::DEFAULT_EPS);
+
             let w = if jp <= jp_low {
                 1.0
             } else if jp >= jp_high {
@@ -402,6 +401,7 @@ pub(crate) fn shock_sensor_grad_p(p_input: ArrayView2<'_,f64>, jp_low: f64, jp_h
             } else {
                 1.0 - (jp - jp_low) / (jp_high - jp_low)
             };
+
             phi[[i, j]] = w;
         }
     }
@@ -409,3 +409,78 @@ pub(crate) fn shock_sensor_grad_p(p_input: ArrayView2<'_,f64>, jp_low: f64, jp_h
     phi
 }
 
+pub(crate) fn hllc_hlle_blend_x_local(
+    q_l: ArrayView3<'_,f64>,
+    q_r: ArrayView3<'_,f64>,
+    f_l: ArrayView3<'_,f64>,
+    f_r:ArrayView3<'_,f64>,
+    gamma:f64,
+    jp_low: f64,
+    jp_high: f64
+)->Array3<f64> {
+    let (p_l, a_l, rho_l, u_l, v_l, h_l) = utils::con2primi_local(q_l, gamma);
+    let (p_r, a_r, rho_r, u_r, v_r, h_r) = utils::con2primi_local(q_r, gamma);
+    
+    let (n,m) = p_l.dim();
+    let mut p = Array2::<f64>::zeros((n,m));
+    for i in 0..n {
+        for j in 0..m {
+            p[[i,j]] = 0.5*(p_l[[i,j]]+p_r[[i,j]]);
+        }
+    }
+    let phi = shock_sensor_grad_p(p.view(), jp_low, jp_high);
+
+    let f_hllc = hllc_x_local(q_l, f_l, q_r, f_r, gamma);
+    let f_hlle = hlle_x_local(q_l, f_l, q_r, f_r, gamma);
+    let (m,n,_c) = f_hllc.dim();
+    let mut flux = Array3::<f64>::zeros((m,n,4));
+
+    for i in 0..m {
+        for j in 0..n {
+            let w = phi[[i,j]];
+            for k in 0..4 {
+                flux[[i,j,k]] = w* f_hllc[[i,j,k]] + (1.0 - w)*f_hlle[[i,j,k]];
+            }
+        }
+    }
+
+    flux
+}
+
+pub(crate) fn hllc_hlle_blend_y_local(
+    q_l: ArrayView3<'_,f64>,
+    q_r: ArrayView3<'_,f64>,
+    f_l: ArrayView3<'_,f64>,
+    f_r:ArrayView3<'_,f64>,
+    gamma:f64,
+    jp_low: f64,
+    jp_high: f64
+)->Array3<f64> {
+    let (p_l, a_l, rho_l, u_l, v_l, h_l) = utils::con2primi_local(q_l, gamma);
+    let (p_r, a_r, rho_r, u_r, v_r, h_r) = utils::con2primi_local(q_r, gamma);
+    
+    let (n,m) = p_l.dim();
+    let mut p = Array2::<f64>::zeros((n,m));
+    for i in 0..n {
+        for j in 0..m {
+            p[[i,j]] = 0.5*(p_l[[i,j]]+p_r[[i,j]]);
+        }
+    }
+    let phi = shock_sensor_grad_p(p.view(), jp_low, jp_high);
+
+    let f_hllc = hllc_y_local(q_l, f_l, q_r, f_r, gamma);
+    let f_hlle = hlle_y_local(q_l, f_l, q_r, f_r, gamma);
+    let (m,n,_c) = f_hllc.dim();
+    let mut flux = Array3::<f64>::zeros((m,n,4));
+
+    for i in 0..m {
+        for j in 0..n {
+            let w = phi[[i,j]];
+            for k in 0..4 {
+                flux[[i,j,k]] = w* f_hllc[[i,j,k]] + (1.0 - w)*f_hlle[[i,j,k]];
+            }
+        }
+    }
+
+    flux
+}
