@@ -1,6 +1,6 @@
 use ndarray::{ArrayView3,Array3, ArrayView2, Array2};
 use crate::utils;
-
+use crate::weno;
 
 
 pub(crate) fn hllc_x_local(q_l: ArrayView3<'_,f64>,
@@ -483,4 +483,55 @@ pub(crate) fn hllc_hlle_blend_y_local(
     }
 
     flux
+}
+
+
+pub(crate) fn l_local(u: ArrayView3<'_,f64>, dx:f64, gamma:f64, force_hlle: bool, jp_cri: (f64,f64))
+-> Array3<f64>
+{
+    let (q_lx, f_lx, q_rx, f_rx) = weno::weno_x_reconstruct_local(u, gamma);
+    let (q_ly, f_ly, q_ry, f_ry) = weno::weno_y_reconstruct_local(u, gamma);
+
+    let (jp_low, jp_high) = jp_cri;
+
+    let f_x = if force_hlle {
+        hlle_x_local(q_lx.view(), f_lx.view(), q_rx.view(), f_rx.view(), gamma)
+    } else {
+        hllc_hlle_blend_x_local(q_lx.view(), q_rx.view(), f_lx.view(), f_rx.view(), gamma, jp_low, jp_high)
+    };
+
+    let f_y = if force_hlle {
+        hlle_y_local(q_ly.view(), f_ly.view(), q_ry.view(), f_ry.view(), gamma)
+    } else {
+        hllc_hlle_blend_y_local(q_ly.view(), q_ry.view(), f_ly.view(), f_ry.view(), gamma, jp_low, jp_high)
+    };
+
+    let (mx, nx, _c) = f_x.dim();
+    let mut df_dx = Array3::<f64>::zeros((mx-1, nx, 4));
+    for i in 0..(mx-1) {
+        for j in 0..nx {
+            for k in 0..4 {
+                df_dx[[i,j,k]] = (f_x[[i+1,j,k]] - f_x[[i,j,k]]) / dx;
+            }
+        }
+    }
+    let (my, ny, _c) = f_y.dim();
+    let mut dg_dy = Array3::<f64>::zeros((my, ny-1, 4));
+    for i in 0..my {
+        for j in 0..(ny-1) {
+            for k in 0..4 {
+                dg_dy[[i,j,k]] = (f_y[[i,j+1,k]] - f_y[[i,j,k]]) / dx;
+            }
+        }
+    }
+    // combine into domain (mx-1, ny-1, 4) -> same as interior of u
+    let mut out = Array3::<f64>::zeros((mx-1, ny-1, 4));
+    for i in 0..(mx-1) {
+        for j in 0..(ny-1) {
+            for k in 0..4 {
+                out[[i,j,k]] = -(df_dx[[i,j,k]] + dg_dy[[i,j,k]]);
+            }
+        }
+    }
+    out
 }
