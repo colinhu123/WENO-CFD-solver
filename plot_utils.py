@@ -86,29 +86,44 @@ def interactive_plot_keyboard(folder, initial_step=0, var="rho", ghost=3):
     
     def update_display(step, variable):
         nonlocal img, cbar
-        
+
         file_path = os.path.join(folder, f"{step}.npy")
         u = np.load(file_path)
         k = VAR_MAP[variable]
-        
+
         data = u[ghost:-ghost, ghost:-ghost, k]
-        
-        ax.clear()
-        img = ax.imshow(
-            data.T,
-            origin="lower",
-            cmap="coolwarm",
-            aspect="equal",
-        )
-        
-        if cbar:
-            cbar.remove()
-        cbar = fig.colorbar(img, ax=ax, label=variable)
-        
+
+        if img is None:
+            # first-time creation
+            ax.clear()
+            img = ax.imshow(
+                data.T,
+                origin="lower",
+                cmap="coolwarm",
+                aspect="equal",
+            )
+            cbar = fig.colorbar(img, ax=ax, label=variable)
+        else:
+            # update existing mappable
+            img.set_data(data.T)
+            # update colorbar scale to match new data range
+            img.autoscale()             # adjust image scaling
+            if cbar is not None:
+                try:
+                    cbar.update_normal(img)
+                    cbar.set_label(variable)
+                except Exception:
+                    # fallback: remove and recreate
+                    try:
+                        cbar.remove()
+                    except Exception:
+                        pass
+                    cbar = fig.colorbar(img, ax=ax, label=variable)
+
         ax.set_title(f"{variable} at step {step}")
         ax.set_xlabel("x index")
         ax.set_ylabel("y index")
-        
+
         plt.draw()
     
     def on_key(event):

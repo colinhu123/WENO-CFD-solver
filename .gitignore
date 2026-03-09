@@ -13,3 +13,5 @@ double_mach_reflection.py
 weno_ext/target/
 
 .venv/
+
+unitest.py

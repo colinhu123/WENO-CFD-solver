@@ -418,8 +418,8 @@ pub(crate) fn hllc_hlle_blend_x_local(
     jp_low: f64,
     jp_high: f64
 )->Array3<f64> {
-    let (p_l, a_l, rho_l, u_l, v_l, h_l) = utils::con2primi_local(q_l, gamma);
-    let (p_r, a_r, rho_r, u_r, v_r, h_r) = utils::con2primi_local(q_r, gamma);
+    let (p_l, _a_l, _rho_l, _u_l, _v_l, _h_l) = utils::con2primi_local(q_l, gamma);
+    let (p_r, _a_r, _rho_r, _u_r, _v_r, _h_r) = utils::con2primi_local(q_r, gamma);
     
     let (n,m) = p_l.dim();
     let mut p = Array2::<f64>::zeros((n,m));
@@ -456,8 +456,8 @@ pub(crate) fn hllc_hlle_blend_y_local(
     jp_low: f64,
     jp_high: f64
 )->Array3<f64> {
-    let (p_l, a_l, rho_l, u_l, v_l, h_l) = utils::con2primi_local(q_l, gamma);
-    let (p_r, a_r, rho_r, u_r, v_r, h_r) = utils::con2primi_local(q_r, gamma);
+    let (p_l, _a_l, _rho_l, _u_l, _v_l, _h_l) = utils::con2primi_local(q_l, gamma);
+    let (p_r, _a_r, _rho_r, _u_r, _v_r, _h_r) = utils::con2primi_local(q_r, gamma);
     
     let (n,m) = p_l.dim();
     let mut p = Array2::<f64>::zeros((n,m));

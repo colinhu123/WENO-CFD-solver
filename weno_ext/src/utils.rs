@@ -32,7 +32,7 @@ pub(crate) fn con2primi_local(q: ArrayView3<'_, f64>, gamma: f64)
     (p, a, rho_safe, u, v, h)
 }
 
-pub(crate) fn roe_average(q_l: ArrayView2<'_, f64>, q_r: ArrayView2<'_, f64>, rho_l: ArrayView2<'_, f64>, rho_r: ArrayView2<'_, f64>) 
+pub(crate) fn _roe_average(q_l: ArrayView2<'_, f64>, q_r: ArrayView2<'_, f64>, rho_l: ArrayView2<'_, f64>, rho_r: ArrayView2<'_, f64>) 
 -> Array2<f64>{
     let (m,n) = q_l.dim();
 
@@ -54,7 +54,7 @@ pub(crate) fn roe_average(q_l: ArrayView2<'_, f64>, q_r: ArrayView2<'_, f64>, rh
     out
 }
 
-pub(crate) fn a_calc(u: ArrayView2<'_, f64>, v: ArrayView2<'_, f64>, h: ArrayView2<'_, f64>,gamma:f64)
+pub(crate) fn _a_calc(u: ArrayView2<'_, f64>, _v: ArrayView2<'_, f64>, h: ArrayView2<'_, f64>,gamma:f64)
 -> Array2<f64>{
     let (m,n) = u.dim();
     let mut a = Array2::<f64>::zeros((m,n));

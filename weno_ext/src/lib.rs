@@ -7,7 +7,6 @@ mod utils;
 mod weno;
 mod riemann;
 
-use utils::{con2primi_local, flux_x_local,flux_y_local};
 
 
 
@@ -31,10 +30,11 @@ fn flux_y_py(py: Python, q: PyReadonlyArray3<f64>, gamma: f64) -> Py<PyArray3<f6
 }
 
 #[pyfunction]
-fn con2primi_py(py: Python, q: PyReadonlyArray3<f64>, gamma: f64) -> PyResult<(Py<PyArray2<f64>>, Py<PyArray2<f64>>, Py<PyArray2<f64>>, Py<PyArray2<f64>>, Py<PyArray2<f64>>)> {
+fn con2primi_py(py: Python, q: PyReadonlyArray3<f64>, gamma: f64) 
+-> PyResult<(Py<PyArray2<f64>>, Py<PyArray2<f64>>, Py<PyArray2<f64>>, Py<PyArray2<f64>>, Py<PyArray2<f64>>, Py<PyArray2<f64>>)> {
     let qarr = q.as_array();
     let (p, a, rho, u, v, h) = utils::con2primi_local(qarr, gamma);
-    Ok((p.into_pyarray(py).to_owned(), a.into_pyarray(py).to_owned(), rho.into_pyarray(py).to_owned(), u.into_pyarray(py).to_owned(), v.into_pyarray(py).to_owned()))
+    Ok((p.into_pyarray(py).to_owned(), a.into_pyarray(py).to_owned(), rho.into_pyarray(py).to_owned(), u.into_pyarray(py).to_owned(), v.into_pyarray(py).to_owned(), h.into_pyarray(py).to_owned()))
 }
 
 #[pyfunction]
@@ -153,7 +153,7 @@ fn l_local_py<'py>(
 
 
 #[pymodule]
-fn weno_ext(py: Python, m: &PyModule) -> PyResult<()> {
+fn weno_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(flux_x_py, m)?)?;
     m.add_function(wrap_pyfunction!(flux_y_py, m)?)?;
     m.add_function(wrap_pyfunction!(con2primi_py, m)?)?;
