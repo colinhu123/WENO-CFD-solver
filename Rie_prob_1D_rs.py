@@ -13,7 +13,8 @@ control_dict = {
     "nstep": 100,
     "CFL": 0.1,
     "min_step_time": 1e-10,
-    "max_time_step": 0.1
+    "max_time_step": 0.1,
+    "file_storage": True
 }
 
 def rk3(q,grid_dict,dt, gamma, force_hlle, jp_cri):
