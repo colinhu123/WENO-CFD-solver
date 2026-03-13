@@ -178,3 +178,6 @@ def interactive_plot_keyboard(folder, initial_step=0, var="rho", ghost=3):
     plt.show()
 
 #interactive_plot_keyboard("2026-02-11_00-24-45", initial_step=15, var="rho")
+
+if __name__ == "__main__":
+    interactive_plot_keyboard("./data/2026-03-12_12-55-08",initial_step=0,var="rho")

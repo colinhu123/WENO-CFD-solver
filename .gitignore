@@ -8,10 +8,12 @@ RiemannSolver/
 
 slice_animation_with_time.mp4
 
-double_mach_reflection.py
+
 
 weno_ext/target/
 
 .venv/
 
-unitest.py
+
+
+check.ipynb
