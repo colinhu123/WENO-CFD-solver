@@ -11,7 +11,7 @@ grid_dict = {
 
 control_dict = {
     "nstep": 100,
-    "CFL": 0.1,
+    "CFL": 0.3,
     "min_step_time": 1e-10,
     "max_time_step": 0.1,
     "file_storage": True

@@ -14,14 +14,14 @@ grid_dict = {
 
 control_dict = {
     "nstep": 800,
-    "CFL": 0.2,
+    "CFL": 0.1,
     "max_time_step": 0.1,
     "file_storage":True,
     "force_hlle": False,
     "visualize": True,
     "mode":"debug",
     "t_final":0.2,
-    "jp_cri":(10000,10100)
+    "jp_cri":(10000,11000)
 }
 
 phys_dict = {

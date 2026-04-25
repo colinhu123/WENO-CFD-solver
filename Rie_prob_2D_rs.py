@@ -94,10 +94,10 @@ def init(grid_dict,control_dict, gamma = 1.4):
 
     quad_index = int(((nx+ny)/2+6)/2)
 
-    q[:quad_index,:quad_index,4] = 0.125
-    q[:quad_index,:quad_index,5] = 1
-    q[:quad_index,:quad_index,6] = 1
-    q[:quad_index,:quad_index,7] = 0.125
+    q[:quad_index,:quad_index,4] = 1
+    q[:quad_index,:quad_index,5] = 0
+    q[:quad_index,:quad_index,6] = 0
+    q[:quad_index,:quad_index,7] = 1
 
     q[quad_index:,:quad_index,4] = 0.5
     q[quad_index:,:quad_index,5] = 0
@@ -109,10 +109,10 @@ def init(grid_dict,control_dict, gamma = 1.4):
     q[:quad_index,quad_index:,6] = 0
     q[:quad_index,quad_index:,7] = 0.25
 
-    q[quad_index:,quad_index:,4] = 1
-    q[quad_index:,quad_index:,5] = 0
-    q[quad_index:,quad_index:,6] = 0
-    q[quad_index:,quad_index:,7] = 1
+    q[quad_index:,quad_index:,4] = 0.125
+    q[quad_index:,quad_index:,5] = 1
+    q[quad_index:,quad_index:,6] = 1
+    q[quad_index:,quad_index:,7] = 0.125
 
 
     q[:, :, 0] = q[:, :, 4]
