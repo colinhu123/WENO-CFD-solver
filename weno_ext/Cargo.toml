@@ -1,6 +1,6 @@
 [package]
 name = "weno_ext"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2021"
 
 [lib]
@@ -10,3 +10,4 @@ crate-type = ["cdylib"]
 pyo3 = { version = "0.18", features = ["extension-module"] }
 numpy = "0.18"
 ndarray = "0.15"
+

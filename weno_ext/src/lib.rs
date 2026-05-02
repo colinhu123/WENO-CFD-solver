@@ -54,8 +54,8 @@ fn weno_y_py(py: Python, u: PyReadonlyArray3<f64>, gamma: f64) -> PyResult<(Py<P
 #[pyfunction]
 fn hllc_x_rs_py(py: Python, 
     q_l: PyReadonlyArray3<f64>, 
-    q_r: PyReadonlyArray3<f64>, 
     f_l: PyReadonlyArray3<f64>, 
+    q_r: PyReadonlyArray3<f64>, 
     f_r: PyReadonlyArray3<f64>, 
     gamma: f64) -> Py<PyArray3<f64>> {
     let out = riemann::hllc_x_local(q_l.as_array(), f_l.as_array(),q_r.as_array(), f_r.as_array(), gamma);
@@ -65,8 +65,8 @@ fn hllc_x_rs_py(py: Python,
 #[pyfunction]
 fn hllc_y_rs_py(py: Python, 
     q_l: PyReadonlyArray3<f64>, 
-    q_r: PyReadonlyArray3<f64>, 
     f_l: PyReadonlyArray3<f64>, 
+    q_r: PyReadonlyArray3<f64>, 
     f_r: PyReadonlyArray3<f64>, 
     gamma: f64) -> Py<PyArray3<f64>> {
     let out = riemann::hllc_y_local(q_l.as_array(), f_l.as_array(),q_r.as_array(), f_r.as_array(), gamma);
@@ -76,8 +76,8 @@ fn hllc_y_rs_py(py: Python,
 #[pyfunction]
 fn hlle_x_rs_py(py: Python, 
     q_l: PyReadonlyArray3<f64>, 
-    q_r: PyReadonlyArray3<f64>, 
     f_l: PyReadonlyArray3<f64>, 
+    q_r: PyReadonlyArray3<f64>, 
     f_r: PyReadonlyArray3<f64>, 
     gamma: f64) -> Py<PyArray3<f64>> {
     let out = riemann::hlle_x_local(q_l.as_array(), f_l.as_array(),q_r.as_array(), f_r.as_array(), gamma);
@@ -87,8 +87,8 @@ fn hlle_x_rs_py(py: Python,
 #[pyfunction]
 fn hlle_y_rs_py(py: Python, 
     q_l: PyReadonlyArray3<f64>, 
-    q_r: PyReadonlyArray3<f64>, 
     f_l: PyReadonlyArray3<f64>, 
+    q_r: PyReadonlyArray3<f64>, 
     f_r: PyReadonlyArray3<f64>, 
     gamma: f64) -> Py<PyArray3<f64>> {
     let out = riemann::hlle_y_local(q_l.as_array(), f_l.as_array(),q_r.as_array(), f_r.as_array(), gamma);

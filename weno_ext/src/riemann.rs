@@ -154,13 +154,13 @@ pub(crate) fn hllc_y_local(q_l: ArrayView3<'_,f64>,
             let coeff_l = ql0 * (s_l - v_l) / (s_l - s_star);
             let el_spec = ql3 / ql0;
             let e_star_spec_l = el_spec + (s_star - v_l) * (s_star + p_l / (ql0 * (s_l - v_l)));
-            let q_star_l = [coeff_l, coeff_l * s_star, coeff_l * v_l, coeff_l * e_star_spec_l];
+            let q_star_l = [coeff_l, coeff_l * u_l, coeff_l * s_star, coeff_l * e_star_spec_l];
 
             // Right star
             let coeff_r = qr0 * (s_star - v_r) / (s_r - s_star);
             let er_spec = qr3 / qr0;
             let e_star_spec_r = er_spec + (s_star - v_r) * (s_star + p_r / (qr0 * (s_r - v_r)));
-            let q_star_r = [coeff_r, coeff_r * s_star, coeff_r * v_r, coeff_r * e_star_spec_r];
+            let q_star_r = [coeff_r, coeff_r * u_r, coeff_r * s_star, coeff_r * e_star_spec_r];
 
             // pick flux
             let fl = [f_l[[i, j, 0]], f_l[[i, j, 1]], f_l[[i, j, 2]], f_l[[i, j, 3]]];
@@ -255,7 +255,7 @@ let (m, n, _c) = q_l.dim();
                 let q_l = [ql0, ql1, ql2, ql3];
                 let q_r = [qr0, qr1, qr2, qr3];
                 for k in 0..4 {
-                    fij[k] = s_r*fl[k] - s_l*fr[k] + s_r*s_l*(q_r[k] - q_l[k])/denom;
+                    fij[k] = (s_r*fl[k] - s_l*fr[k] + s_r*s_l*(q_r[k] - q_l[k])) / denom;
                 }
                 
             }
@@ -411,8 +411,8 @@ pub(crate) fn shock_sensor_grad_p(
 
 pub(crate) fn hllc_hlle_blend_x_local(
     q_l: ArrayView3<'_,f64>,
-    q_r: ArrayView3<'_,f64>,
     f_l: ArrayView3<'_,f64>,
+    q_r: ArrayView3<'_,f64>,
     f_r:ArrayView3<'_,f64>,
     gamma:f64,
     jp_low: f64,
@@ -449,8 +449,8 @@ pub(crate) fn hllc_hlle_blend_x_local(
 
 pub(crate) fn hllc_hlle_blend_y_local(
     q_l: ArrayView3<'_,f64>,
-    q_r: ArrayView3<'_,f64>,
     f_l: ArrayView3<'_,f64>,
+    q_r: ArrayView3<'_,f64>,
     f_r:ArrayView3<'_,f64>,
     gamma:f64,
     jp_low: f64,
@@ -497,13 +497,13 @@ pub(crate) fn l_local(u: ArrayView3<'_,f64>, dx:f64, gamma:f64, force_hlle: bool
     let f_x = if force_hlle {
         hlle_x_local(q_lx.view(), f_lx.view(), q_rx.view(), f_rx.view(), gamma)
     } else {
-        hllc_hlle_blend_x_local(q_lx.view(), q_rx.view(), f_lx.view(), f_rx.view(), gamma, jp_low, jp_high)
+        hllc_hlle_blend_x_local(q_lx.view(), f_lx.view(), q_rx.view(), f_rx.view(), gamma, jp_low, jp_high)
     };
 
     let f_y = if force_hlle {
         hlle_y_local(q_ly.view(), f_ly.view(), q_ry.view(), f_ry.view(), gamma)
     } else {
-        hllc_hlle_blend_y_local(q_ly.view(), q_ry.view(), f_ly.view(), f_ry.view(), gamma, jp_low, jp_high)
+        hllc_hlle_blend_y_local(q_ly.view(), f_ly.view(), q_ry.view(), f_ry.view(), gamma, jp_low, jp_high)
     };
 
     let (mx, nx, _c) = f_x.dim();

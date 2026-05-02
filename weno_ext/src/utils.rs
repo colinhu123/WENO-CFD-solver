@@ -54,14 +54,14 @@ pub(crate) fn _roe_average(q_l: ArrayView2<'_, f64>, q_r: ArrayView2<'_, f64>, r
     out
 }
 
-pub(crate) fn _a_calc(u: ArrayView2<'_, f64>, _v: ArrayView2<'_, f64>, h: ArrayView2<'_, f64>,gamma:f64)
+pub(crate) fn _a_calc(u: ArrayView2<'_, f64>, v: ArrayView2<'_, f64>, h: ArrayView2<'_, f64>,gamma:f64)
 -> Array2<f64>{
     let (m,n) = u.dim();
     let mut a = Array2::<f64>::zeros((m,n));
     for i in 0..m {
         for j in 0..n {
             let u1 = u[[i,j]];
-            let v1 = u[[i,j]];
+            let v1 = v[[i,j]];
             let tmp = h[[i,j]] - 0.5*(u1.powi(2)+v1.powi(2));
             a[[i,j]] = ((gamma - 1.0) * tmp).max(0.0).sqrt();
         }

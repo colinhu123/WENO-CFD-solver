@@ -18,7 +18,7 @@ control_dict = {
     "visualize": True,
     "mode":"opt",
     "t_final":0.05,
-    "jp_cri":(5,100)
+    "jp_cri":(1,5)
 }
 
 phys_dict = {
@@ -84,6 +84,42 @@ def rk3(q,grid_dict,dt, gamma, force_hlle, jp_cri=(0.2,1.0)):
 
     return apply_bc_corrected(q_next,grid_dict)
 
+def rk3_cc(q, grid_dict, dt, gamma, force_hlle, jp_cri=(0.2, 1.0)):
+    nx, ny, dx = grid_dict["nx"], grid_dict["ny"], grid_dict["dx"]
+
+    # Stage 1
+    l0 = weno_ext.l_local_py(q, dx, gamma, force_hlle, jp_cri)
+    q1 = q.copy()
+    q1[3:nx+3, 3:ny+3, :4] = q[3:nx+3, 3:ny+3, :4] + dt * l0
+    q1 = apply_bc_corrected(q1, grid_dict)
+    # ← sync primitives on q1 before next L() call
+    p, a, rho, u, v, h = weno_ext.con2primi_py(q1, gamma)
+    q1[:,:,4]=rho; q1[:,:,5]=u; q1[:,:,6]=v; q1[:,:,7]=p
+
+    # Stage 2
+    l1 = weno_ext.l_local_py(q1, dx, gamma, force_hlle, jp_cri)
+    q2 = q.copy()
+    q2[3:nx+3, 3:ny+3, :4] = (0.75*q[3:nx+3, 3:ny+3, :4]
+                             + 0.25*q1[3:nx+3, 3:ny+3, :4]
+                             + 0.25*dt*l1)
+    q2 = apply_bc_corrected(q2, grid_dict)
+    # ← sync primitives on q2 before next L() call
+    p, a, rho, u, v, h = weno_ext.con2primi_py(q2, gamma)
+    q2[:,:,4]=rho; q2[:,:,5]=u; q2[:,:,6]=v; q2[:,:,7]=p
+
+    # Stage 3
+    l2 = weno_ext.l_local_py(q2, dx, gamma, force_hlle, jp_cri)
+    q_next = q.copy()
+    q_next[3:nx+3, 3:ny+3, :4] = (1/3*q[3:nx+3, 3:ny+3, :4]
+                                 + 2/3*q2[3:nx+3, 3:ny+3, :4]
+                                 + 2/3*dt*l2)
+    q_next = apply_bc_corrected(q_next, grid_dict)
+    # final sync (already in your code)
+    p, a, rho, u, v, h = weno_ext.con2primi_py(q_next, gamma)
+    q_next[:,:,4]=rho; q_next[:,:,5]=u; q_next[:,:,6]=v; q_next[:,:,7]=p
+
+    return apply_bc_corrected(q_next, grid_dict)
+
 def init(grid_dict,control_dict, gamma = 1.4):
 
     nx = grid_dict["nx"]
@@ -94,25 +130,25 @@ def init(grid_dict,control_dict, gamma = 1.4):
 
     quad_index = int(((nx+ny)/2+6)/2)
 
-    q[:quad_index,:quad_index,4] = 1
-    q[:quad_index,:quad_index,5] = 0
-    q[:quad_index,:quad_index,6] = 0
-    q[:quad_index,:quad_index,7] = 1
+    q[:quad_index,:quad_index,4] = 0.125
+    q[:quad_index,:quad_index,5] = 1
+    q[:quad_index,:quad_index,6] = 1
+    q[:quad_index,:quad_index,7] = 0.125
 
     q[quad_index:,:quad_index,4] = 0.5
-    q[quad_index:,:quad_index,5] = 0
-    q[quad_index:,:quad_index,6] = 1
+    q[quad_index:,:quad_index,5] = 1
+    q[quad_index:,:quad_index,6] = 0
     q[quad_index:,:quad_index,7] = 0.25
 
     q[:quad_index,quad_index:,4] = 0.5
-    q[:quad_index,quad_index:,5] = 1
-    q[:quad_index,quad_index:,6] = 0
+    q[:quad_index,quad_index:,5] = 0
+    q[:quad_index,quad_index:,6] = 1
     q[:quad_index,quad_index:,7] = 0.25
 
-    q[quad_index:,quad_index:,4] = 0.125
-    q[quad_index:,quad_index:,5] = 1
-    q[quad_index:,quad_index:,6] = 1
-    q[quad_index:,quad_index:,7] = 0.125
+    q[quad_index:,quad_index:,4] = 1
+    q[quad_index:,quad_index:,5] = 0
+    q[quad_index:,quad_index:,6] = 0
+    q[quad_index:,quad_index:,7] = 1
 
 
     q[:, :, 0] = q[:, :, 4]
@@ -191,9 +227,9 @@ def main_rs(grid_dict, control_dict, phys_dict):
 
             # call rk3 with user's jp_cri if provided, else default inside rk3
             if jp_cri is not None:
-                q = rk3(q, grid_dict, dt, gamma, force_hlle=control_dict.get("force_hlle", False), jp_cri=jp_cri)
+                q = rk3_cc(q, grid_dict, dt, gamma, force_hlle=control_dict.get("force_hlle", False), jp_cri=jp_cri)
             else:
-                q = rk3(q, grid_dict, dt, gamma, force_hlle=control_dict.get("force_hlle", False))
+                q = rk3_cc(q, grid_dict, dt, gamma, force_hlle=control_dict.get("force_hlle", False))
 
             T += dt
             step += 1
@@ -215,9 +251,9 @@ def main_rs(grid_dict, control_dict, phys_dict):
             dt = float(control_dict.get("CFL", 0.5)) * dx / (c_max + 1e-16)
 
             if jp_cri is not None:
-                q = rk3(q, grid_dict, dt, gamma, force_hlle=control_dict.get("force_hlle", False), jp_cri=jp_cri)
+                q = rk3_cc(q, grid_dict, dt, gamma, force_hlle=control_dict.get("force_hlle", False), jp_cri=jp_cri)
             else:
-                q = rk3(q, grid_dict, dt, gamma, force_hlle=control_dict.get("force_hlle", False))
+                q = rk3_cc(q, grid_dict, dt, gamma, force_hlle=control_dict.get("force_hlle", False))
 
             T += dt
             step += 1
