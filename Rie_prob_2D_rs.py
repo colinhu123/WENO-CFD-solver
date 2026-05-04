@@ -9,7 +9,7 @@ grid_dict = {
 }
 
 control_dict = {
-    #"nstep": 100,
+    "nstep": 150,
     "CFL": 0.1,
     "min_step_time": 1e-10,
     "max_time_step": 0.1,
@@ -17,7 +17,7 @@ control_dict = {
     "force_hlle": False,
     "visualize": True,
     "mode":"opt",
-    "t_final":0.05,
+    #"t_final":0.05,
     "jp_cri":(1,5)
 }
 
@@ -32,15 +32,40 @@ def apply_bc_corrected(u, grid_info):
     i_start, i_end = 3, 3 + nx
     j_start, j_end = 3, 3 + ny
 
-    for i in [0, 1, 2]:
-        u[i, :, :] = u[3, :, :]
+    for g in range(3):
+        mirror = 5 - g          # g=0->5, g=1->4, g=2->3
+        u[g, :, 0] =  u[mirror, :, 0]   # rho
+        u[g, :, 1] =  -u[mirror, :, 1]   # rho*u — flip (normal to bottom wall is y... 
+        u[g, :, 2] =  u[mirror, :, 2]   # rho*v — tangential
+        u[g, :, 3] =  u[mirror, :, 3]   # E
 
-    for i in [nx+3, nx+4, nx+5]:
-        u[i, :, :] = u[nx+2, :, :]
-    for j in [0, 1, 2]:
-        u[:, j, :] = u[:, 3, :]
-    for j in [ny+3, ny+4, ny+5]:
-        u[:, j, :] = u[:, ny+2, :]
+    # --- TOP boundary (ghost rows m-3,m-2,m-1 — mirror from m-6,m-5,m-4) ---
+    m = u.shape[0]
+    for g in range(3):
+        interior = m - 6 + g    # m-6, m-5, m-4
+        ghost    = m - 3 + g    # m-3, m-2, m-1
+        u[ghost, :, 0] =  u[interior, :, 0]
+        u[ghost, :, 1] =  -u[interior, :, 1]   # rho*u — flip
+        u[ghost, :, 2] =  u[interior, :, 2]   # rho*v — tangential
+        u[ghost, :, 3] =  u[interior, :, 3]
+
+    # --- LEFT boundary (ghost cols 0,1,2 — mirror from cols 5,4,3) ---
+    for g in range(3):
+        mirror = 5 - g
+        u[:, g, 0] =  u[:, mirror, 0]
+        u[:, g, 1] =  u[:, mirror, 1]   # rho*u — tangential
+        u[:, g, 2] = -u[:, mirror, 2]   # rho*v — flip (normal to left wall is x)
+        u[:, g, 3] =  u[:, mirror, 3]
+
+    # --- RIGHT boundary (ghost cols n-3,n-2,n-1 — mirror from n-6,n-5,n-4) ---
+    n = u.shape[1]
+    for g in range(3):
+        interior = n - 6 + g
+        ghost    = n - 3 + g
+        u[:, ghost, 0] =  u[:, interior, 0]
+        u[:, ghost, 1] =  u[:, interior, 1]   # rho*u — tangential
+        u[:, ghost, 2] = -u[:, interior, 2]   # rho*v — flip
+        u[:, ghost, 3] =  u[:, interior, 3]
     
     return u
 
@@ -88,6 +113,7 @@ def rk3_cc(q, grid_dict, dt, gamma, force_hlle, jp_cri=(0.2, 1.0)):
     nx, ny, dx = grid_dict["nx"], grid_dict["ny"], grid_dict["dx"]
 
     # Stage 1
+    apply_bc_corrected(q,grid_dict)
     l0 = weno_ext.l_local_py(q, dx, gamma, force_hlle, jp_cri)
     q1 = q.copy()
     q1[3:nx+3, 3:ny+3, :4] = q[3:nx+3, 3:ny+3, :4] + dt * l0
@@ -97,6 +123,7 @@ def rk3_cc(q, grid_dict, dt, gamma, force_hlle, jp_cri=(0.2, 1.0)):
     q1[:,:,4]=rho; q1[:,:,5]=u; q1[:,:,6]=v; q1[:,:,7]=p
 
     # Stage 2
+    q1 = apply_bc_corrected(q1,grid_dict)
     l1 = weno_ext.l_local_py(q1, dx, gamma, force_hlle, jp_cri)
     q2 = q.copy()
     q2[3:nx+3, 3:ny+3, :4] = (0.75*q[3:nx+3, 3:ny+3, :4]
@@ -108,6 +135,7 @@ def rk3_cc(q, grid_dict, dt, gamma, force_hlle, jp_cri=(0.2, 1.0)):
     q2[:,:,4]=rho; q2[:,:,5]=u; q2[:,:,6]=v; q2[:,:,7]=p
 
     # Stage 3
+    q2 = apply_bc_corrected(q2,grid_dict)
     l2 = weno_ext.l_local_py(q2, dx, gamma, force_hlle, jp_cri)
     q_next = q.copy()
     q_next[3:nx+3, 3:ny+3, :4] = (1/3*q[3:nx+3, 3:ny+3, :4]

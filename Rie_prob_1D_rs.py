@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import WENO_HLLC_2d
 from plot_utils import interactive_plot_keyboard
 grid_dict = {
-    "nx":500,
-    "ny":3,
+    "nx":3,
+    "ny":500,
     "dx":1/500,
 }
 
@@ -121,8 +121,19 @@ def main(grid_info,control_dict, gamma = 1.4, file_storage = True):
 
     q = np.zeros((nx+6,ny+6,8))
 
-    bound = int((nx+6)/2)
+    bound = int((max(nx,ny)+6)/2)
 
+    q[:,:bound, 4] = 1.0
+    q[:,:bound, 5] = 0.0
+    q[:,:bound, 6] = 0.0
+    q[:,:bound, 7] = 1.0
+
+    q[:,bound:, 4] = 0.125
+    q[:,bound:, 5] = 0.0
+    q[:,bound:, 6] = 0.0
+    q[:,bound:, 7] = 0.1
+
+    '''
     q[:bound,:,4] = 1.0
     q[:bound, :, 5] = 0.0
     q[:bound, :, 6] = 0.0
@@ -132,6 +143,7 @@ def main(grid_info,control_dict, gamma = 1.4, file_storage = True):
     q[bound:, :, 5] = 0.0
     q[bound:, :, 6] = 0.0
     q[bound:, :, 7] = 0.1
+    '''
 
     q[:, :, 0] = q[:, :, 4]
     q[:, :, 1] = q[:, :, 4]* q[:, :, 5]
@@ -158,7 +170,7 @@ def main(grid_info,control_dict, gamma = 1.4, file_storage = True):
 
         dt = control_dict["CFL"]*dx/c_max
 
-        q = rk3(q,grid_dict,dt,gamma,force_hlle=False,jp_cri=(1,5))
+        q = rk3(q,grid_dict,dt,gamma,force_hlle=True,jp_cri=(1,5))
         T += dt
         if file_storage:
             np.save(os.path.join(full_path,f"{i}.npy"), q)

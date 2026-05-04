@@ -64,7 +64,7 @@ pub(crate) fn hllc_x_local(q_l: ArrayView3<'_,f64>,
             let q_star_l = [coeff_l, coeff_l * s_star, coeff_l * v_l, coeff_l * e_star_spec_l];
 
             // Right star
-            let coeff_r = qr0 * (s_star - u_r) / (s_r - s_star);
+            let coeff_r = qr0 * (s_r - u_r) / (s_r - s_star);
             let er_spec = qr3 / qr0;
             let e_star_spec_r = er_spec + (s_star - u_r) * (s_star + p_r / (qr0 * (s_r - u_r)));
             let q_star_r = [coeff_r, coeff_r * s_star, coeff_r * v_r, coeff_r * e_star_spec_r];
@@ -157,7 +157,7 @@ pub(crate) fn hllc_y_local(q_l: ArrayView3<'_,f64>,
             let q_star_l = [coeff_l, coeff_l * u_l, coeff_l * s_star, coeff_l * e_star_spec_l];
 
             // Right star
-            let coeff_r = qr0 * (s_star - v_r) / (s_r - s_star);
+            let coeff_r = qr0 * (s_r - v_r) / (s_r - s_star);
             let er_spec = qr3 / qr0;
             let e_star_spec_r = er_spec + (s_star - v_r) * (s_star + p_r / (qr0 * (s_r - v_r)));
             let q_star_r = [coeff_r, coeff_r * u_r, coeff_r * s_star, coeff_r * e_star_spec_r];
@@ -335,7 +335,7 @@ let (m, n, _c) = q_l.dim();
                 let q_l = [ql0, ql1, ql2, ql3];
                 let q_r = [qr0, qr1, qr2, qr3];
                 for k in 0..4 {
-                    fij[k] = s_r*fl[k] - s_l*fr[k] + s_r*s_l*(q_r[k] - q_l[k])/denom;
+                    fij[k] = (s_r*fl[k] - s_l*fr[k] + s_r*s_l*(q_r[k] - q_l[k]))/denom;
                 }
                 
             }
