@@ -3,22 +3,21 @@ import numpy as np
 from plot_utils import interactive_plot_keyboard
 
 grid_dict = {
-    "nx": 200,
-    "ny": 200,
-    "dx": 1/200
+    "nx": 300,
+    "ny": 300,
+    "dx": 1/300      # ← 确认已修复
 }
 
 control_dict = {
-    "nstep": 150,
-    "CFL": 0.1,
+    "nstep": 600,
+    "CFL": 0.3,
     "min_step_time": 1e-10,
     "max_time_step": 0.1,
     "file_storage": True,
-    "force_hlle": False,
+    "force_hlle": True,
     "visualize": True,
     "mode": "opt",
-    #"t_final": 0.05,
-    "jp_cri": (0.1, 12)
+    "jp_cri": (0.1, 2)   # ← 从这里开始调
 }
 
 phys_dict = {
@@ -56,7 +55,7 @@ def apply_bc_reflecting(u: np.ndarray, grid_info: dict) -> np.ndarray:
     Returns u (same array, modified in-place and returned for convenience).
     """
     ng = 3
-    m, n = u.shape[0], u.shape[1]
+    m, n = u.shape[1], u.shape[0]
 
     # ------------------------------------------------------------------ #
     #  BOTTOM  (ghost rows 0,1,2  ←  interior rows 5,4,3)                #
@@ -72,7 +71,7 @@ def apply_bc_reflecting(u: np.ndarray, grid_info: dict) -> np.ndarray:
     # ------------------------------------------------------------------ #
     for g in range(ng):
         interior = m - 2 * ng + g        # m-6, m-5, m-4
-        ghost    = m - ng + g            # m-3, m-2, m-1
+        ghost    = m - 1 - g            # m-1, m-2, m-3
         u[ghost, ng:n-ng, :] = u[interior, ng:n-ng, :] * _S_Y
 
     # ------------------------------------------------------------------ #
@@ -89,7 +88,7 @@ def apply_bc_reflecting(u: np.ndarray, grid_info: dict) -> np.ndarray:
     # ------------------------------------------------------------------ #
     for g in range(ng):
         interior = n - 2 * ng + g
-        ghost    = n - ng + g
+        ghost    = n - 1 - g
         u[ng:m-ng, ghost, :] = u[ng:m-ng, interior, :] * _S_X
 
     # ------------------------------------------------------------------ #
@@ -120,6 +119,37 @@ def apply_bc_reflecting(u: np.ndarray, grid_info: dict) -> np.ndarray:
     return u
 
 
+def apply_bc_zero_gradient(u: np.ndarray,grid_dict):
+    ng = 3
+    nx = u.shape[0]
+    ny = u.shape[1]
+
+    #bottom BC
+    for g in range(ng):
+        mirror = 2*ng - 1 - g
+        u[:,g,:] = u[:,mirror, :]
+
+    #top BC
+    g = 0
+    for g in range(ng):
+        interior = ny - 2*ng +g
+        ghost = ny - 1 - g
+        u[:,ghost,:] = u[:,interior, :]
+    
+    #left BC
+    g =0
+    for g in range(ng):
+        mirror = 2*ng - 1-g
+        u[g,:,:] = u[mirror,:,:]
+    
+    #right BC
+    g = 0
+    for  g in range(ng):
+        interior = nx -2*ng + g
+        ghost = nx - 1 - g
+        u[ghost,:,:] = u[interior, :,:]
+    return u
+
 # ---------------------------------------------------------------------------
 # Helper: sync primitive variables from conserved (indices 4-7)
 # ---------------------------------------------------------------------------
@@ -144,32 +174,32 @@ def rk3_cc(q: np.ndarray, grid_dict: dict, dt: float,
     sl = np.s_[3:nx+3, 3:ny+3, :4]   # interior slice, conserved only
 
     # ---- Stage 1 -------------------------------------------------------
-    apply_bc_reflecting(q, grid_dict)
+    apply_bc_zero_gradient(q, grid_dict)
     l0 = weno_ext.l_local_py(q, dx, gamma, force_hlle, jp_cri)
 
     q1 = q.copy()
     q1[sl] = q[sl] + dt * l0
-    apply_bc_reflecting(q1, grid_dict)
+    apply_bc_zero_gradient(q1, grid_dict)
     _sync_primitives(q1, gamma)
-    apply_bc_reflecting(q1, grid_dict)   # re-fill after primitive sync
+    apply_bc_zero_gradient(q1, grid_dict)   # re-fill after primitive sync
 
     # ---- Stage 2 -------------------------------------------------------
     l1 = weno_ext.l_local_py(q1, dx, gamma, force_hlle, jp_cri)
 
     q2 = q.copy()
     q2[sl] = 0.75 * q[sl] + 0.25 * q1[sl] + 0.25 * dt * l1
-    apply_bc_reflecting(q2, grid_dict)
+    apply_bc_zero_gradient(q2, grid_dict)
     _sync_primitives(q2, gamma)
-    apply_bc_reflecting(q2, grid_dict)
+    apply_bc_zero_gradient(q2, grid_dict)
 
     # ---- Stage 3 -------------------------------------------------------
     l2 = weno_ext.l_local_py(q2, dx, gamma, force_hlle, jp_cri)
 
     q_next = q.copy()
     q_next[sl] = (1/3) * q[sl] + (2/3) * q2[sl] + (2/3) * dt * l2
-    apply_bc_reflecting(q_next, grid_dict)
+    apply_bc_zero_gradient(q_next, grid_dict)
     _sync_primitives(q_next, gamma)
-    apply_bc_reflecting(q_next, grid_dict)
+    apply_bc_zero_gradient(q_next, grid_dict)
 
     return q_next
 
@@ -187,25 +217,25 @@ def init(grid_dict: dict, control_dict: dict, gamma: float = 1.4) -> np.ndarray:
     # quad_index is the cell index of the quadrant boundary in the full
     # (ghost-padded) array.  For a symmetric nx==ny grid this sits at
     # the physical midpoint:  3 (ghost) + nx//2
-    quad_index = 3 + nx // 2
+    quad_index = 3 + int(nx*0.75)
 
     # Primitive variables per quadrant  [rho, u, v, p]  → indices 4,5,6,7
     # bottom-left
     q[:quad_index, :quad_index, 4] = 0.125
     q[:quad_index, :quad_index, 5] = 1.0
     q[:quad_index, :quad_index, 6] = 1.0
-    q[:quad_index, :quad_index, 7] = 0.125
+    q[:quad_index, :quad_index, 7] = 0.025
 
     # top-left  (i >= quad_index, j < quad_index)
     q[quad_index:, :quad_index, 4] = 0.5
-    q[quad_index:, :quad_index, 5] = 1.0
-    q[quad_index:, :quad_index, 6] = 0.0
+    q[quad_index:, :quad_index, 5] = 0
+    q[quad_index:, :quad_index, 6] = 1.0 
     q[quad_index:, :quad_index, 7] = 0.25
 
     # bottom-right  (i < quad_index, j >= quad_index)
     q[:quad_index, quad_index:, 4] = 0.5
-    q[:quad_index, quad_index:, 5] = 0.0
-    q[:quad_index, quad_index:, 6] = 1.0
+    q[:quad_index, quad_index:, 5] = 1.0
+    q[:quad_index, quad_index:, 6] = 0.0
     q[:quad_index, quad_index:, 7] = 0.25
 
     # top-right
