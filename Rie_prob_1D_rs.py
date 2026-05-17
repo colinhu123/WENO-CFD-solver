@@ -4,14 +4,14 @@ import matplotlib.pyplot as plt
 import WENO_HLLC_2d
 from plot_utils import interactive_plot_keyboard
 grid_dict = {
-    "nx":3,
-    "ny":500,
+    "nx":500,
+    "ny":3,
     "dx":1/500,
 }
 
 control_dict = {
     "nstep": 100,
-    "CFL": 0.3,
+    "CFL": 0.1,
     "min_step_time": 1e-10,
     "max_time_step": 0.1,
     "file_storage": True
@@ -22,14 +22,14 @@ def rk3(q,grid_dict,dt, gamma, force_hlle, jp_cri):
     ny = grid_dict.get("ny")
     dx = grid_dict.get("dx")
 
-    l0 = weno_ext.l_local_py(q,dx,gamma,force_hlle, jp_cri)
+    l0 = weno_ext.l_local_py(q,dx,gamma,force_hlle, jp_cri,True)
 
     q1 = q.copy()
     q1[3: nx+3, 3:ny+3,:4] = q[3: nx+3, 3:ny+3,:4] + dt*l0
 
     q1 = apply_bc_corrected(q1,grid_dict)
 
-    l1 = weno_ext.l_local_py(q1,dx,gamma,force_hlle,jp_cri)
+    l1 = weno_ext.l_local_py(q1,dx,gamma,force_hlle,jp_cri,True)
     q2 = q.copy()
     q2[3: nx+3, 3:ny+3,:4] = (
         0.75*q[3: nx+3, 3:ny+3,:4] + 
@@ -38,7 +38,7 @@ def rk3(q,grid_dict,dt, gamma, force_hlle, jp_cri):
     )
     q2 = apply_bc_corrected(q2,grid_dict)
 
-    l2 = weno_ext.l_local_py(q2,dx,gamma,force_hlle,jp_cri)
+    l2 = weno_ext.l_local_py(q2,dx,gamma,force_hlle,jp_cri,True)
     q_next = q.copy()
     q_next[3: nx+3, 3:ny+3,:4] = (
         1/3 * q[3: nx+3, 3:ny+3,:4] + 
@@ -122,7 +122,7 @@ def main(grid_info,control_dict, gamma = 1.4, file_storage = True):
     q = np.zeros((nx+6,ny+6,8))
 
     bound = int((max(nx,ny)+6)/2)
-
+    '''
     q[:,:bound, 4] = 1.0
     q[:,:bound, 5] = 0.0
     q[:,:bound, 6] = 0.0
@@ -143,7 +143,7 @@ def main(grid_info,control_dict, gamma = 1.4, file_storage = True):
     q[bound:, :, 5] = 0.0
     q[bound:, :, 6] = 0.0
     q[bound:, :, 7] = 0.1
-    '''
+    
 
     q[:, :, 0] = q[:, :, 4]
     q[:, :, 1] = q[:, :, 4]* q[:, :, 5]

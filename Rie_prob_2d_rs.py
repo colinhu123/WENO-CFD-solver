@@ -3,21 +3,22 @@ import numpy as np
 from plot_utils import interactive_plot_keyboard
 
 grid_dict = {
-    "nx": 300,
-    "ny": 300,
-    "dx": 1/300      # ← 确认已修复
+    "nx": 200,
+    "ny": 200,
+    "dx": 1/200      # ← 确认已修复
 }
 
 control_dict = {
-    "nstep": 600,
+    "nstep": 300,
     "CFL": 0.3,
     "min_step_time": 1e-10,
     "max_time_step": 0.1,
     "file_storage": True,
-    "force_hlle": True,
+    "force_hlle": False,
     "visualize": True,
     "mode": "opt",
-    "jp_cri": (0.1, 2)   # ← 从这里开始调
+    "jp_cri": (0.5, 2),   # ← 从这里开始调
+    "weno type": True
 }
 
 phys_dict = {
@@ -167,7 +168,9 @@ def _sync_primitives(q: np.ndarray, gamma: float) -> np.ndarray:
 # ---------------------------------------------------------------------------
 def rk3_cc(q: np.ndarray, grid_dict: dict, dt: float,
            gamma: float, force_hlle: bool,
-           jp_cri: tuple = (0.2, 1.0)) -> np.ndarray:
+           weno_switch: bool,
+           jp_cri: tuple = (0.2, 1.0)
+           ) -> np.ndarray:
 
     nx, ny, dx = grid_dict["nx"], grid_dict["ny"], grid_dict["dx"]
 
@@ -175,7 +178,7 @@ def rk3_cc(q: np.ndarray, grid_dict: dict, dt: float,
 
     # ---- Stage 1 -------------------------------------------------------
     apply_bc_zero_gradient(q, grid_dict)
-    l0 = weno_ext.l_local_py(q, dx, gamma, force_hlle, jp_cri)
+    l0 = weno_ext.l_local_py(q, dx, gamma, force_hlle, jp_cri,weno_switch)
 
     q1 = q.copy()
     q1[sl] = q[sl] + dt * l0
@@ -184,7 +187,7 @@ def rk3_cc(q: np.ndarray, grid_dict: dict, dt: float,
     apply_bc_zero_gradient(q1, grid_dict)   # re-fill after primitive sync
 
     # ---- Stage 2 -------------------------------------------------------
-    l1 = weno_ext.l_local_py(q1, dx, gamma, force_hlle, jp_cri)
+    l1 = weno_ext.l_local_py(q1, dx, gamma, force_hlle, jp_cri,weno_switch)
 
     q2 = q.copy()
     q2[sl] = 0.75 * q[sl] + 0.25 * q1[sl] + 0.25 * dt * l1
@@ -193,7 +196,7 @@ def rk3_cc(q: np.ndarray, grid_dict: dict, dt: float,
     apply_bc_zero_gradient(q2, grid_dict)
 
     # ---- Stage 3 -------------------------------------------------------
-    l2 = weno_ext.l_local_py(q2, dx, gamma, force_hlle, jp_cri)
+    l2 = weno_ext.l_local_py(q2, dx, gamma, force_hlle, jp_cri,weno_switch)
 
     q_next = q.copy()
     q_next[sl] = (1/3) * q[sl] + (2/3) * q2[sl] + (2/3) * dt * l2
@@ -275,6 +278,7 @@ def main_rs(grid_dict: dict, control_dict: dict, phys_dict: dict):
     file_storage = bool(control_dict.get("file_storage", False))
     force_hlle   = bool(control_dict.get("force_hlle", False))
     jp_cri       = control_dict.get("jp_cri", (0.2, 1.0))
+    weno_switch  = bool(control_dict.get("weno type"))
 
     t_final    = control_dict.get("t_final", None)
     nstep_user = control_dict.get("nstep", None)
@@ -316,7 +320,7 @@ def main_rs(grid_dict: dict, control_dict: dict, phys_dict: dict):
 
     def _step(q, dt):
         return rk3_cc(q, grid_dict, dt, gamma,
-                      force_hlle=force_hlle, jp_cri=jp_cri)
+                      force_hlle=force_hlle, weno_switch=weno_switch,jp_cri=jp_cri)
 
     # ------------------------------------------------------------------ #
     #  TIME-CONTROLLED RUN                                                #

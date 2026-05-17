@@ -2,6 +2,8 @@ use ndarray::{Array2, Array3, ArrayView3, ArrayView2};
 
 pub(crate) const DEFAULT_EPS: f64 = 1e-12_f64;
 pub(crate) const SQRT3_12: f64 = 0.1443375673;
+pub const RHO_MIN: f64 = 1e-12; // your existing density floor
+pub const P_MIN:   f64 = 1e-12;
 
 /// conservative -> primitive; returns 2D fields (Array2)
 pub(crate) fn con2primi_local(q: ArrayView3<'_, f64>, gamma: f64)

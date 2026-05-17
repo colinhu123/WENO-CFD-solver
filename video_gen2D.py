@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter
 
 # =========== 用户可修改的参数 ===========
-folder =  "data/2026-02-18_23-53-58"  # 包含 0.npy..699.npy 和 time.npy 的文件夹
+folder =  "data/2026-05-09_10-51-11"  # 包含 0.npy..699.npy 和 time.npy 的文件夹
 slice_index = 4                  # 取 [:,:,4]
-outfile = "slice_animation_with_time.mp4"  # 输出视频名
+outfile = "slice_animation_with_time_2D.mp4"  # 输出视频名
 fps = 20                         # 输出视频帧率
 interval_ms = 50                 # 界面播放时每帧间隔（ms）
 sample_max = 200                 # 用于估算 vmin/vmax 的抽样帧数（<= n_frames）

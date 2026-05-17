@@ -486,11 +486,15 @@ pub(crate) fn hllc_hlle_blend_y_local(
 }
 
 
-pub(crate) fn l_local(u: ArrayView3<'_,f64>, dx:f64, gamma:f64, force_hlle: bool, jp_cri: (f64,f64))
+pub(crate) fn l_local(u: ArrayView3<'_,f64>, dx:f64, gamma:f64, force_hlle: bool, jp_cri: (f64,f64),cons_var: bool)
 -> Array3<f64>
 {
-    let (q_lx, f_lx, q_rx, f_rx) = weno::weno_x_reconstruct_local(u, gamma);
-    let (q_ly, f_ly, q_ry, f_ry) = weno::weno_y_reconstruct_local(u, gamma);
+    let (q_lx, f_lx, q_rx, f_rx) = if cons_var{weno::weno_x_reconstruct_local_cons(u, gamma)}else{
+        weno::weno_x_reconstruct_local(u, gamma)
+    };
+    let (q_ly, f_ly, q_ry, f_ry) = if cons_var{weno::weno_y_reconstruct_local_cons(u, gamma)}else{
+        weno::weno_y_reconstruct_local(u, gamma)
+    };
 
     let (jp_low, jp_high) = jp_cri;
 

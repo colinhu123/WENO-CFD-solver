@@ -139,13 +139,14 @@ fn l_local_py<'py>(
     gamma: f64,
     force_hlle: bool,
     jp_cri: (f64, f64),
+    cons_switch: bool
 ) -> PyResult<&'py PyArray3<f64>> {
     // Get an ndarray view of the input (zero-copy if possible)
     let u_view = u.as_array(); // type: ndarray::ArrayView3<f64>
 
     // Call the Rust function (keeps the call inside the GIL for safety).
     // If this becomes a performance issue, see notes about py.allow_threads.
-    let out: Array3<f64> = riemann::l_local(u_view, dx, gamma, force_hlle, jp_cri);
+    let out: Array3<f64> = riemann::l_local(u_view, dx, gamma, force_hlle, jp_cri,cons_switch);
 
     // Convert the resulting Array3<f64> into a numpy array to return
     Ok(PyArray3::from_owned_array(py, out))
