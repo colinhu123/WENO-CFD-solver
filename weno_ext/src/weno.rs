@@ -323,6 +323,40 @@ fn pressure(q: &[f64; 4], gamma: f64) -> f64 {
 ///   Pass 2 – all face pressures ≥ P_MIN
 ///
 /// The cell average is never modified, so conservation is preserved exactly.
+
+#[inline]
+fn find_theta_p(q: &[f64; 4], u_bar: &[f64; 4],gamma: f64) -> f64 {
+    if pressure(q,gamma) > utils::P_MIN{
+        return 1.0;
+    }
+    else {
+        let mut lo = 0.0;
+        let mut hi = 1.0;
+        let rho_d = q[0] - u_bar[0];
+        let mom_xd = q[1] - u_bar[1];
+        let mom_yd = q[2] - u_bar[2];
+        let ed = q[3] - u_bar[3];
+
+        for _ in 0..30 {
+            let theta = 0.5*(lo+hi);
+            let rho = u_bar[0] + theta*rho_d;
+            let mom_x = u_bar[1] + theta*mom_xd;
+            let mom_y = u_bar[2] + theta*mom_yd;
+            let e = u_bar[3] + theta*ed;
+
+            let u:[f64; 4] = [rho,mom_x,mom_y,e];
+
+            if pressure(&u,gamma) > utils::P_MIN{
+                lo = theta;
+            } else {
+                hi = theta;
+            }
+
+        }
+        lo
+    }
+}
+
 #[inline]
 fn  pp_limit(q: &mut [f64; 4], u_bar: &[f64; 4], gamma: f64) {
     // density
@@ -340,8 +374,8 @@ fn  pp_limit(q: &mut [f64; 4], u_bar: &[f64; 4], gamma: f64) {
     // pressure
     let p_q = pressure(q, gamma);
     if p_q < utils::P_MIN {
-        let p_bar = pressure(u_bar, gamma).max(utils::P_MIN);
-        let theta = ((p_bar - utils::P_MIN) / (p_bar - p_q))
+        //let p_bar = pressure(u_bar, gamma).max(utils::P_MIN);
+        let theta = find_theta_p(q, u_bar, gamma)
             .min(1.0)
             .max(0.0);
 
@@ -358,6 +392,26 @@ fn  pp_limit(q: &mut [f64; 4], u_bar: &[f64; 4], gamma: f64) {
 #[inline]
 fn get_cell(arr: &Array3<f64>, i: usize, j: usize) -> [f64; 4] {
     [arr[[i,j,0]], arr[[i,j,1]], arr[[i,j,2]], arr[[i,j,3]]]
+}
+
+//extract pressure from each cell and compare the ratio
+
+fn extract_pressure(cells: &[[f64; 4]; 6],gamma: f64)-> bool{
+    let mut p_min = 100000000.0;
+    let mut p_max = 0.0;
+    for k in 0..6 {
+        let p = pressure(&cells[k], gamma);
+        p_min = p.min(p_min);
+        p_max = p.max(p_max);
+    }
+
+    if p_max/p_min > 50.0 {
+        true
+        //reconstruct directly with conservative variables
+    } else {
+        true
+        //reconstruct with charateristic value
+    }
 }
  
 // ---------------------------------------------------------------------------
@@ -406,6 +460,7 @@ pub(crate) fn weno_x_reconstruct_local(u: ArrayView3<'_, f64>, gamma: f64)
             // projection, which was the cause of the single-column stripe.
  
             // ---- Left face (right face of cell i+2) -----------------------
+            if extract_pressure(&cells, gamma){
             let (rho_al, u_al, v_al, h_al, c_al) =
                 roe_avg_x(&cells[2], &cells[3], gamma);
             let l_mat_l = left_eigenvectors_x(rho_al, u_al, v_al, c_al, gamma);
@@ -450,6 +505,17 @@ pub(crate) fn weno_x_reconstruct_local(u: ArrayView3<'_, f64>, gamma: f64)
                 q_l[[i,j,k]] = cons_l[k];
                 q_r[[i,j,k]] = cons_r[k];
             }
+        } else {
+            let mut char_l = [0.0f64; 4];
+            let mut char_r = [0.0f64; 4];
+            for k in 0..4 {
+                
+            char_l[k] = weno5_left(cells[0][k], cells[1][k], cells[2][k],
+                                       cells[3][k], cells[4][k]);
+            char_r[k] = weno5_left(cells[1][k], cells[2][k], cells[3][k],
+                                       cells[4][k], cells[5][k]);
+            }
+        }
         }
     }
  
@@ -536,6 +602,7 @@ pub(crate) fn weno_y_reconstruct_local(u: ArrayView3<'_, f64>, gamma: f64)
                 get_cell(&u_con, i, j+4),
                 get_cell(&u_con, i, j+5),
             ];
+            if extract_pressure(&cells, gamma) {
  
             // ---- Left face (right face of cell j+2) -----------------------
             let (rho_al, u_al, v_al, h_al, c_al) =
@@ -581,6 +648,17 @@ pub(crate) fn weno_y_reconstruct_local(u: ArrayView3<'_, f64>, gamma: f64)
                 q_l[[i,j,k]] = cons_l[k];
                 q_r[[i,j,k]] = cons_r[k];
             }
+        } else {
+            let mut char_l = [0.0f64; 4];
+            let mut char_r = [0.0f64; 4];
+
+            for k in 0..4 {
+            char_l[k] = weno5_left(cells[0][k], cells[1][k], cells[2][k],
+                                       cells[3][k], cells[4][k]);
+            char_r[k] = weno5_left(cells[1][k], cells[2][k], cells[3][k],
+                                       cells[4][k], cells[5][k]);
+            }
+        }
         }
     }
  

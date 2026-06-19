@@ -9,7 +9,7 @@ grid_dict = {
 }
 
 control_dict = {
-    "nstep": 300,
+    "nstep": 30,
     "CFL": 0.3,
     "min_step_time": 1e-10,
     "max_time_step": 0.1,
@@ -18,7 +18,7 @@ control_dict = {
     "visualize": True,
     "mode": "opt",
     "jp_cri": (0.5, 2),   # ← 从这里开始调
-    "weno type": True
+    "weno type": False
 }
 
 phys_dict = {
@@ -258,7 +258,7 @@ def init(grid_dict: dict, control_dict: dict, gamma: float = 1.4) -> np.ndarray:
     q[:, :, 2] = rho * v
     q[:, :, 3] = p / (gamma - 1.0) + 0.5 * rho * (u**2 + v**2)
 
-    apply_bc_reflecting(q, grid_dict)
+    apply_bc_zero_gradient(q, grid_dict)
 
     return q
 
