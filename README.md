@@ -18,8 +18,12 @@ The methodology revolves around the use of the Finite Volume Method (FVM) to app
 ### WENO Algorithm
 The WENO algorithm is used to obtain high-order accurate numerical solutions. It achieves this by blending multiple polynomial reconstructions of the solution, dynamically adjusting the weights based on the smoothness of the solution. This results in improved resolution of shock waves and discontinuities compared to traditional methods.
 
-### HLLC Riemann Solver
+Currently, conservative variables are used to reconstruct face value. Characteristic reconstruction is implemented but failed easily due to two shock waves at the same point, contributing to failure of WENO recontruction. A detector is used here in order to drop back to reconstruction of conservatives as characteristic one fails.
+
+### Riemann Solver
 The Harten-Lax-van Leer Contact (HLLC) Riemann solver is applied to resolve the small-scale features of the solution. It provides a way to compute numerical fluxes at the interfaces between computational cells, handling the characteristic propagation of waves in the solution. The HLLC solver is able to deal with both smooth and discontinuous flow conditions effectively.
+
+However, at the position around shock wave, HLLC may fail due to its low-dissipation feature. To solve this problem, HLLE is introduced and add numerical viscosity intentionally. HLLC-HLLE blended solver uses gradient of pressure as the way to decision the use of solvers.
 
 ## Implementations
 Within this repository, various test cases for Riemann problems have been implemented to validate the accuracy and efficiency of the WENO method in conjunction with the HLLC Riemann solver. Each test case evaluates the performance under different initial conditions and shock strengths, showcasing the robustness of the solver.
