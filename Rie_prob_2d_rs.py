@@ -258,7 +258,7 @@ def init(grid_dict: dict, control_dict: dict, gamma: float = 1.4) -> np.ndarray:
     q[:, :, 2] = rho * v
     q[:, :, 3] = p / (gamma - 1.0) + 0.5 * rho * (u**2 + v**2)
 
-    apply_bc_reflecting(q, grid_dict)
+    apply_bc_zero_gradient(q, grid_dict)
 
     return q
 
