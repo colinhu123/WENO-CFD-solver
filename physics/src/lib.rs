@@ -140,6 +140,42 @@ impl State {
         }
     }
 
+    pub fn con2char(&self,l:Array2<f64>) -> State {
+        let s1 = array![
+            [self.rho],
+            [self.mom_x],
+            [self.mom_y],
+            [self.e],
+        ];
+
+        let char = l.dot(&s1);
+
+        Self {
+            rho: char[[0,0]],
+            mom_x: char[[1,0]],
+            mom_y: char[[2,0]],
+            e: char[[3,0]],
+        }
+    }
+
+    pub fn char2con(&self, r: Array2<f64>) -> State {
+        let s1 = array![
+            [self.rho],
+            [self.mom_x],
+            [self.mom_y],
+            [self.e],
+        ];
+
+        let char = r.dot(&s1);
+
+        Self {
+            rho: char[[0,0]],
+            mom_x: char[[1,0]],
+            mom_y: char[[2,0]],
+            e: char[[3,0]],
+        }
+    }
+
 }
 
 

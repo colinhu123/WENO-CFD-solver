@@ -7,6 +7,8 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "mesh",
+ "ndarray",
+ "numerics",
  "physics",
 ]
 
@@ -78,6 +80,9 @@ dependencies = [
 [[package]]
 name = "numerics"
 version = "0.1.0"
+dependencies = [
+ "physics",
+]
 
 [[package]]
 name = "physics"

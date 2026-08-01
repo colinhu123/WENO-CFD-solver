@@ -1,7 +1,9 @@
 use mesh;
 use physics;
-
+use numerics;
 use mesh::cutcell::{Point,GridInfo};
+
+use ndarray::{array, Array2};
 
 fn main() {
     println!("Hello, world!");
@@ -39,5 +41,31 @@ fn main() {
         println!("{:?}",rl);
 
     }
+
+    let l = s1.build_l(s2,physics::Direction::X);
+
+    let state1 = array![
+        [s1.rho],
+        [s1.mom_x],
+        [s1.mom_y],
+        [s1.e],
+    ];
+
+    let sten = numerics::weno::WenoStencil {
+        points: [s1,s1,s1,s1,s1,s1],
+    };
+
+    let res = sten.weno_reconstruction();
+
+    println!("{:?}", res.0);
+    println!("{:?}", res.1);
+
+    let char = l.dot(&state1);
+
+    println!("{:?}", s1.con2char(l));
+
+    println!("{:?}", char);
+
+    //println!("{:?}", char[[1,0]]);
     
 }

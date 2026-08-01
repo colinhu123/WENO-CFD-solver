@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 mesh= { path = "../mesh" }
 physics = { path = "../physics"}
+numerics = {path = "../numerics"}
+ndarray = "0.17"
