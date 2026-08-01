@@ -1,4 +1,5 @@
 use mesh;
+use physics;
 
 use mesh::cutcell::{Point,GridInfo};
 
@@ -24,6 +25,19 @@ fn main() {
     };
 
     let (mask, _cellinfo) = mesh::geometry_preprocessing(&poly, &grid);
+    let s1 = physics::State { rho: 3.0, mom_x: 1.0, mom_y: 2.0, e: 6.0 };
+    let s2 = physics::State { rho: 4.0, mom_x: -1.0, mom_y: 1.0, e: 7.0 };
 
-    println!{"{:?}", mask};
+    for dir in [physics::Direction::X, physics::Direction::Y] {
+        let l = s1.build_l(s2, dir);
+        let r = s1.build_r(s2, dir);
+
+        let lr = l.dot(&r);
+        let rl = r.dot(&l);
+
+        println!("{:?}",lr);
+        println!("{:?}",rl);
+
+    }
+    
 }

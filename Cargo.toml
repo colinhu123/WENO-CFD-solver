@@ -3,5 +3,5 @@ resolver = "3"
 members = [
     "mesh",
     "app", 
-    "physics",
+    "physics", "numerics", "riemann", "solver",
 ]
