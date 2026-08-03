@@ -1,6 +1,7 @@
 pub mod weno;
 pub mod godunov;
 pub mod utils;
+pub mod gq;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right

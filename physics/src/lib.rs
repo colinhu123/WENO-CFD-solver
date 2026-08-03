@@ -5,7 +5,7 @@ pub const GAMMA: f64 = 1.4;
 #[derive(Debug,Copy,Clone)]
 pub enum Direction {
     X,
-    Y
+    Y,
 }
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct State {
